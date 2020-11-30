@@ -267,7 +267,7 @@ def undistort2(img, K,D,DIM, balance=0.0, dim2=None, dim3=None):
 
 def undistort3(img, K,D,DIM, balance=0.0, dim2=None, dim3=None):
     # so far best
-    # balance does not work?
+    # balance not used
     """https://stackoverflow.com/a/44009548"""
     dim1 = img.shape[:2][::-1]  #dim1 is the dimension of input image to un-distort
     if not dim3:
@@ -282,6 +282,17 @@ def undistort3(img, K,D,DIM, balance=0.0, dim2=None, dim3=None):
     undistorted_img = cv2.remap(img, map1, map2, interpolation=cv2.INTER_LINEAR, borderMode=cv2.BORDER_CONSTANT)
     return undistorted_img
 
+def undistort4(img, K,D,DIM, balance=0.0, dim2=None, dim3=None):
+    if not dim2:
+        dim2 = DIM
+    if not dim3:
+        dim3 = DIM
+    scaled_K = K * dim2[0] / DIM[0]  # The values of K is to scale with image dimension.
+    scaled_K[2][2] = 1.0  # Except that K[2][2] is always 1.0
+    new_K = cv2.fisheye.estimateNewCameraMatrixForUndistortRectify(K, D, dim2, numpy.eye(3), balance=balance)
+    map1, map2 = cv2.fisheye.initUndistortRectifyMap(scaled_K, D, numpy.eye(3), new_K, dim3, cv2.CV_32FC1)
+    undistorted_img = cv2.remap(img, map1, map2, interpolation=cv2.INTER_LINEAR, borderMode=cv2.BORDER_CONSTANT)
+    return undistorted_img
 
 def get_rotation_x_clockwise(angle): #chyba clockwise :)
     angle = numpy.radians(angle)
@@ -296,7 +307,7 @@ def get_rotation_y_clockwise(angle): #chyba clockwise :)
     return numpy.array([
         [numpy.cos(angle), 0,  numpy.sin(angle), 0],
         [0,  1, 0, 0],
-        [-numpy.sin(angle),  numpy.cos(angle), 0],
+        [-numpy.sin(angle), 0, numpy.cos(angle), 0],
         [0, 0, 0, 1]
     ])
 def get_rotation_z_clockwise(angle): #chyba clockwise :)
@@ -761,7 +772,7 @@ def stitch_two_images_using_ORB(img1,img2): # there is also brisk algorithm in f
     # Sort them in the order of their distance.
     matches = sorted(matches, key = lambda x:x.distance)
     # Draw first 10 matches.
-    img3 = cv2.drawMatches(img1,kp1,img2,kp2,matches[:10],None,flags=cv2.DrawMatchesFlags_NOT_DRAW_SINGLE_POINTS)
+    # img3 = cv2.drawMatches(img1,kp1,img2,kp2,matches[:10],None,flags=cv2.DrawMatchesFlags_NOT_DRAW_SINGLE_POINTS)
     
     # img1 = query image, img2 = train image
     good_key_point_in_img1 = []
@@ -829,12 +840,14 @@ def main():
     # undistorted_testimg3 = undistort(testimg_bird_eye, K, D, DIM)
     # undistorted_testimg2 = undistort2(testimg_bird_eye, K, D, DIM, balance=0.5, dim2=(840,840), dim3=(840,840))
     # undistorted_testimg = undistort3(testimg_bird_eye, K, D, DIM, balance=0.5, dim2=(840,840), dim3=(840,840))
-    # cv2.imshow("Undistorted Test", numpy.concatenate((undistorted_testimg2,undistorted_testimg), axis=1))
+    # undistorted_testimg4 = undistort4(testimg_bird_eye, K, D, DIM, balance=0.5)
+    # # cv2.imshow("Undistorted Test", numpy.concatenate((undistorted_testimg2,undistorted_testimg), axis=1))
     # cv2.imshow("Undistorted Test using 1", undistorted_testimg3)
     # cv2.imshow("Undistorted Test using 2", undistorted_testimg2)
     # cv2.imshow("Undistorted Test using 3", undistorted_testimg)
+    # cv2.imshow("Undistorted Test using 4", undistorted_testimg4)
     
-    # make_top_view(undistorted_testimg)
+    # # make_top_view(undistorted_testimg)
     # cv2.waitKey(0)
     # cv2.destroyAllWindows()
     # sys.exit()
