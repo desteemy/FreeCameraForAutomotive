@@ -17,6 +17,7 @@ TODO:
     add mouse?
     add predifined camera
     
+    One program shader does not close which result in memory leak
 
 """
 
@@ -134,7 +135,7 @@ def checkerboard(grid_num=8, grid_size=32):
 # przepisać pod swoje potrzeby :)
 # tam jest mowa o face-wise i vertex-wise cokolwiek to znaczy
 def load_texture(filename):
-    print('Loading {}'.format(filename))
+    # print('Loading {}'.format(filename))
     # image = cv2.flip(cv2.imread(filename, cv2.IMREAD_UNCHANGED), 0)  # Must be flipped because of OpenGL
     image = cv2.cvtColor(cv2.imread(filename), cv2.COLOR_BGR2RGB)
     # return image
@@ -158,8 +159,11 @@ def sphere_uv(vertices, radius=None):
 
 class Canvas(app.Canvas):
     def __init__(self):
+        def toggle_fs():
+            self.fullscreen = not self.fullscreen
+        keys = dict(escape='close', F11=toggle_fs, q='close', Q='close')
         app.Canvas.__init__(self, title='Sphere', position=(300, 100),
-                            size=(800, 600), keys='interactive')
+                            size=(800, 600), keys=keys)
 
         # Create sphere
         # sphere = create_sphere(rows=10, cols=10, radius=10, offset=True, method='latitude')
@@ -233,18 +237,24 @@ class Canvas(app.Canvas):
         
         self.apply_zoom()
 
-        gloo.set_state(clear_color=(0.30, 0.30, 0.35, 1.00), depth_test=True)
+        gloo.set_state(clear_color=(0.30, 0.30, 0.35, 1.00), depth_test=True, cull_face=True)
         # gloo.set_state(clear_color=(0.30, 0.30, 0.35, 1.00), depth_test=True,
         #                polygon_offset_fill=True, polygon_offset=(1, 1)) # additional parameters found in https://github.com/vispy/vispy/blob/master/vispy/visuals/sphere.py
-        self._timer = app.Timer('auto', connect=self.on_timer, start=True)
+        
+        self.context.glir.command('FUNC', 'glCullFace', 'front') # invisible triangles will be not drawn, but it does not improve FPS significantly
+            #Culling mode. Can be "front", "back", or "front_and_back".
+        
+        # self._timer = app.Timer('auto', connect=self.on_timer, start=True)
         # self._timer = app.Timer('interval=0', connect=self.on_timer, start=True)
         
-        # self.measure_fps(window=1)
+        self.measure_fps(window=1)
 
-        self.show()
+        # self.show()
 
     def on_timer(self, event):
-        #t = event.elapsed
+    #     #t = event.elapsed
+    #     self.program_sphere['texture'] = load_texture('0260.jpg')
+    #     self.program_rectangle['texture'] = load_texture('ground.jpg')
         self.update()
 
     def on_resize(self, event):
@@ -264,6 +274,7 @@ class Canvas(app.Canvas):
                                       float(self.size[1]), 1.0, 1000.0)
         self.program_sphere['u_projection'] = self.projection
         self.program_rectangle['u_projection'] = self.projection
+        self.update()
         
         
     def on_key_press(self, event):
@@ -310,11 +321,23 @@ class Canvas(app.Canvas):
         self.program_sphere.draw('triangles', self.indices_sphere)
         self.program_rectangle.draw('triangles', self.indices_rectangle)
     
+    
+    # def _remove_programs(self):
+    #     self._keep_it_alive = self.program_rectangle
+    #     self._keep_it_alive = self.program_sphere
+    #     self.program_rectangle = None
+    #     self.program_sphere = None
+    
     # def on_close(self, event):
-    #     self.measure_fps(callback=False)
-    #     self._timer.stop()
+        # self.measure_fps(callback=False)
+        # self._timer.stop()
+        # self._remove_programs()
 
 if __name__ == '__main__':
     canvas = Canvas()
+    # canvas.measure_fps()
+    canvas.show()
     app.run()
+    # canvas.close()
+    app.quit()
     
