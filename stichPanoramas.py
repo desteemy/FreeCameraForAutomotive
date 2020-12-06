@@ -826,15 +826,22 @@ def stitch_two_images_using_ORB(img1,img2): # there is also brisk algorithm in f
 
 
 def main():
-    # calibrationDirectory = 'dataset5/*.jpg'
-    # calibrationDirectory = glob.glob(calibrationDirectory)
-    # calibrationDirectory = only_valid_images_for_calibration
-    # K,D,DIM = getCameraParameters_using_omnidirectional(calibrationDirectory)
-    # K,D,DIM = getCameraParameters(calibrationDirectory)
-    K = numpy.array([[219.85077387813544, 0.0, 321.8468539428703], [0.0, 219.81115217715458, 321.26199300586325], [0.0, 0.0, 1.0]])
-    D = numpy.array([[-0.02236163741176025], [-0.01566355538478192], [0.0066695817100666304], [-0.0009867103996664935]])
-    DIM =(640, 640)
+    if USE_PREDEFINED_CAMERA_PARAMETERS is True:
+        K = numpy.array([[219.85077387813544, 0.0, 321.8468539428703], [0.0, 219.81115217715458, 321.26199300586325], [0.0, 0.0, 1.0]])
+        D = numpy.array([[-0.02236163741176025], [-0.01566355538478192], [0.0066695817100666304], [-0.0009867103996664935]])
+        DIM =(640, 640)
+    elif ONLY_VALID_IMAGES_FOR_CAMERA_CALIBRATION is True:
+        calibrationDirectory = only_valid_images_for_calibration
+        K,D,DIM = getCameraParameters_using_omnidirectional(calibrationDirectory)
+        K,D,DIM = getCameraParameters(calibrationDirectory)
+    else:
+        calibrationDirectory = 'dataset5/*.jpg'
+        calibrationDirectory = glob.glob(calibrationDirectory)
+        K,D,DIM = getCameraParameters_using_omnidirectional(calibrationDirectory)
+        K,D,DIM = getCameraParameters(calibrationDirectory)
     
+    
+    # Test undistort methods
     # testimg_bird_eye = cv2.imread("dataset5/0023.jpg")
     
     # undistorted_testimg3 = undistort(testimg_bird_eye, K, D, DIM)
@@ -852,16 +859,12 @@ def main():
     # cv2.destroyAllWindows()
     # sys.exit()
     
-    #cap = cv2.VideoCapture("Front_120_2500000-0231.mp4")
     capBack = cv2.VideoCapture("260-290mp4/Back_0260-0290.mp4")
     capLeft = cv2.VideoCapture("260-290mp4/Left_0260-0290.mp4")
     capFront = cv2.VideoCapture("260-290mp4/Front_0260-0290.mp4")
     capRight = cv2.VideoCapture("260-290mp4/Right_0260-0290.mp4")
     
     
-    # img_path = '0004.jpg'
-    # img = cv2.imread(img_path)
-    # undistort(img,K,D,DIM)
     frame_counter = 0
     
     
@@ -888,11 +891,13 @@ def main():
         imgRight_unwarped0 = undistort3(imgRight,K,D,DIM)
         img3 = numpy.concatenate((imgBack_unwarped0, imgLeft_unwarped0, imgFront_unwarped0, imgRight_unwarped0), axis=1)
     
-        # shrinking_parameter, crop_top, crop_bottom = find_parameters_to_make_top_view(imgBack_unwarped0)
-        shrinking_parameter = 300
-        crop_top = 340
-        crop_bottom = 0
-        
+        if USE_PREDEFINED_TOP_VIEW_PARAMETERS is True:
+            shrinking_parameter = 300
+            crop_top = 340
+            crop_bottom = 0
+        else:
+            shrinking_parameter, crop_top, crop_bottom = find_parameters_to_make_top_view(imgBack_unwarped0)
+            
         imgBack_topview = make_top_view(imgBack_unwarped0, shrinking_parameter=shrinking_parameter, crop_top=crop_top, crop_bottom=crop_bottom)
         imgLeft_topview = make_top_view(imgLeft_unwarped0, shrinking_parameter=shrinking_parameter, crop_top=crop_top, crop_bottom=crop_bottom)
         imgFront_topview = make_top_view(imgFront_unwarped0, shrinking_parameter=shrinking_parameter, crop_top=crop_top, crop_bottom=crop_bottom)
@@ -943,9 +948,16 @@ def main():
         
         combined_top_view = combine_top_views(imgBack_topview, imgLeft_topview, imgFront_topview, imgRight_topview, Back_position, Left_position, Front_position, Right_position)
         #cv2.imshow("Top View image", combined_top_view)
+        
+        # crop image
+        height_in_stiched = numpy.nonzero(combined_top_view[:,int(combined_top_view.shape[1]/2),:][:,1])[0]
+        width_in_stiched = numpy.nonzero(combined_top_view[int(combined_top_view.shape[0]/2),:,:][:,1])[0]
+        combined_top_view = combined_top_view[min(height_in_stiched):max(height_in_stiched), min(width_in_stiched):max(width_in_stiched),:]
+
+        
     else:
         
-        # #unwarp images using projection
+        # unwarp images using projection
         W_remap = 720
         H = 640
         FOV = 180
@@ -954,13 +966,13 @@ def main():
         imgLeft_unwarped = cv2.remap(imgLeft, xmap, ymap, cv2.INTER_LINEAR)
         imgFront_unwarped = cv2.remap(imgFront, xmap, ymap, cv2.INTER_LINEAR)
         imgRight_unwarped = cv2.remap(imgRight, xmap, ymap, cv2.INTER_LINEAR)
-        
+    
         img4 = numpy.concatenate((imgBack_unwarped, imgLeft_unwarped, imgFront_unwarped, imgRight_unwarped), axis=1)
-        cv2.imshow("Unwarped by undistort in line", cv2.resize(img3, (0, 0), None, 0.5, 0.5))
         cv2.imshow("Unwarped in line", cv2.resize(img4, (0, 0), None, 0.5, 0.5))
         cv2.waitKey(0)
         cv2.destroyAllWindows()
         # sys.exit()
+        
         #stitch unwarped images
         # vertical_stitching_offset = 40
         vertical_stitching_offset = 30
@@ -976,8 +988,8 @@ def main():
         stitched_BL = stitch_two_images_using_ORB(imgBack_unwarped[horizontal_stitching_offset:H-horizontal_stitching_offset, vertical_stitching_offset:W_remap-vertical_stitching_offset, :],imgLeft_unwarped[horizontal_stitching_offset:H-horizontal_stitching_offset, vertical_stitching_offset:W_remap-vertical_stitching_offset, :])
         stitched_FR = stitch_two_images_using_ORB(imgRight_unwarped[horizontal_stitching_offset:H-horizontal_stitching_offset, vertical_stitching_offset:W_remap-vertical_stitching_offset, :],imgFront_unwarped[horizontal_stitching_offset:H-horizontal_stitching_offset, vertical_stitching_offset:W_remap-vertical_stitching_offset, :])
         stitched_BLRF = stitch_two_images_using_ORB(stitched_BL,stitched_FR)
-        print("BLRF\n")
-        print(stitched_BLRF.shape)
+        # print("BLRF\n")
+        # print(stitched_BLRF.shape)
         
         # crop image - czy to ma sens? - raczej nie, zobaczymy jak to będzie dzialac dalej, teraz gupie
         # moze wypadaloby zrobic projekcje z "equrectangular"/"obround" do "rectangular" przedtym
@@ -1099,17 +1111,24 @@ def main():
     capFront.release()
     capRight.release()
 
+# Declare parameters of program
+ONLY_TOP_VIEW = False
+USE_PREDEFINED_CAMERA_PARAMETERS = True
+ONLY_VALID_IMAGES_FOR_CAMERA_CALIBRATION = False
+USE_PREDEFINED_TOP_VIEW_PARAMETERS = True
+#USE_PREDEFINED_COMBINE_TOP_VIEW_PARAMETERS = True # to co jest to narazie tylko wstępne parametry, żeby łatwiej kalibrować
 
 
-only_valid_images_for_calibration = []
-only_valid_images_for_calibration.append("dataset5/0009.jpg")
-only_valid_images_for_calibration.append("dataset5/0010.jpg")
-only_valid_images_for_calibration.append("dataset5/0023.jpg")
-only_valid_images_for_calibration.append("dataset5/0032.jpg")
-only_valid_images_for_calibration.append("dataset5/0058.jpg")
-only_valid_images_for_calibration.append("dataset5/0067.jpg")
+if ONLY_VALID_IMAGES_FOR_CAMERA_CALIBRATION is True:
+    only_valid_images_for_calibration = []
+    only_valid_images_for_calibration.append("dataset5/0009.jpg")
+    only_valid_images_for_calibration.append("dataset5/0010.jpg")
+    only_valid_images_for_calibration.append("dataset5/0023.jpg")
+    only_valid_images_for_calibration.append("dataset5/0032.jpg")
+    only_valid_images_for_calibration.append("dataset5/0058.jpg")
+    only_valid_images_for_calibration.append("dataset5/0067.jpg")
 
-ONLY_TOP_VIEW = True
+
 main()
 
 

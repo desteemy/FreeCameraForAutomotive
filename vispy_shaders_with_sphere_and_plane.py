@@ -17,7 +17,7 @@ TODO:
     add mouse?
     add predifined camera
     
-    One program shader does not close which result in memory leak
+    Running vispy programs in ipython (spyder console) leaves canvas after closing, running multiple times results in memory leak?
 
 """
 
@@ -138,8 +138,8 @@ def load_texture(filename):
     # print('Loading {}'.format(filename))
     # image = cv2.flip(cv2.imread(filename, cv2.IMREAD_UNCHANGED), 0)  # Must be flipped because of OpenGL
     image = cv2.cvtColor(cv2.imread(filename), cv2.COLOR_BGR2RGB)
-    # return image
-    return gloo.Texture2D(image, format='rgb')
+    return image
+    # return gloo.Texture2D(image, format='rgb')
 
 def random_uv(number_of_vertices):
     return numpy.random.rand(number_of_vertices,2).astype(numpy.float32)
@@ -214,8 +214,10 @@ class Canvas(app.Canvas):
         
         # self.program_sphere['texture'] = checkerboard()
         # self.program_sphere['texture'] = load_texture('1_earth_8k.jpg')
-        self.program_sphere['texture'] = load_texture('0260.jpg')
-        self.program_rectangle['texture'] = load_texture('ground.jpg')
+        self.texture_sphere = gloo.Texture2D(load_texture('0260.jpg'), format='rgb')
+        self.texture_rectangle = gloo.Texture2D(load_texture('ground.jpg'), format='rgb')
+        self.program_sphere['texture'] = self.texture_sphere
+        self.program_rectangle['texture'] = self.texture_rectangle
         
         # Camera and perspective parameters
         self.distance = 5
@@ -244,18 +246,24 @@ class Canvas(app.Canvas):
         self.context.glir.command('FUNC', 'glCullFace', 'front') # invisible triangles will be not drawn, but it does not improve FPS significantly
             #Culling mode. Can be "front", "back", or "front_and_back".
         
-        # self._timer = app.Timer('auto', connect=self.on_timer, start=True)
-        # self._timer = app.Timer('interval=0', connect=self.on_timer, start=True)
+        self._timer = app.Timer('auto', connect=self.on_timer, start=True)
+        # self._timer = app.Timer(interval=0, connect=self.on_timer, start=True)
         
+        self.draw_timer = 0.0
         self.measure_fps(window=1)
 
         # self.show()
 
     def on_timer(self, event):
-    #     #t = event.elapsed
-    #     self.program_sphere['texture'] = load_texture('0260.jpg')
-    #     self.program_rectangle['texture'] = load_texture('ground.jpg')
-        self.update()
+        # t = event.elapsed
+        self.draw_timer += event.dt
+        if self.draw_timer > 0.04: # uptade 24 FPS
+            self.draw_timer -= 0.04
+            self.texture_sphere.set_data(load_texture('0260.jpg'))
+            self.texture_rectangle.set_data(load_texture('ground.jpg'))
+            self.program_sphere['texture'] = self.texture_sphere
+            self.program_rectangle['texture'] = self.texture_rectangle
+            self.update()
 
     def on_resize(self, event):
         self.apply_zoom()
@@ -283,8 +291,8 @@ class Canvas(app.Canvas):
         #     event.text, event.key.name, modifiers, type(event.key.name)))
         
         # Close program / also Esc as default for interactive
-        if(event.key.name == "Q" or event.key.name == "q"):
-            self.close()
+        # if(event.key.name == "Q" or event.key.name == "q"):
+        #     self.close()
         
         # Rotate left
         if(event.key.name == "Left" or event.key.name == "A"):
