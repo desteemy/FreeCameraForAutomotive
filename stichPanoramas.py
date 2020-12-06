@@ -573,7 +573,8 @@ def stack_two_images_with_offsets(img1,img2, offset1, offset2):
     # verticalSize = img1.shape[1] - offset1 + img2.shape[1] - offset2
     # depthSize = img1.shape[2]
     # stackedImage = numpy.zeros((horizontalSize, verticalSize), numpy.uint8)
-    stackedImage = numpy.concatenate((img1[:,0:img1.shape[1]-offset1,:], img2[:,offset2:img2.shape[1],:]), axis=1)
+    #stackedImage = numpy.concatenate((img1[:,0:img1.shape[1]-offset1,:], img2[:,offset2:img2.shape[1],:]), axis=1)
+    stackedImage = numpy.concatenate((img1[:,0:img1.shape[1]-offset1,:], img2[:,offset2:,:]), axis=1)
     return stackedImage
 
 def find_parameters_for_two_image_stack(img1, img2, offset1=0, offset2=0):
@@ -981,28 +982,42 @@ def main():
         # sys.exit()
         
                 
-        if USE_EQUIRECTANGULAR_METHOD is True: #test
-        
+        if USE_EQUIRECTANGULAR_METHOD is True:
+
             # Use starting parameters for equirectangular
             #if USE_PREDEFINED_EQURECTANGULAR_PARAMETERS is True:
             offsetBackLeft1 = 167
             offsetBackLeft2 = 167
-            offsetBackLeftFront1 = 167
-            offsetBackLeftFront2 = 167
-            offsetBackLeftFrontRight1 = 167
-            offsetBackLeftFrontRight2 = 167
+            offsetLeftFront1 = 167
+            offsetLeftFront2 = 167
+            offsetFrontRight1 = 167
+            offsetFrontRight2 = 167
+            offsetRightBack1 = 167
+            offsetRightBack2 = 167
     
-            #find parameters
-            offsetBackLeft1, offsetBackLeft2 = find_parameters_for_two_image_stack(imgBack_unwarped, imgLeft_unwarped, offsetBackLeft1, offsetBackLeft2)
-            stacked_back_left = stack_two_images_with_offsets(imgBack_unwarped, imgLeft_unwarped, offsetBackLeft1, offsetBackLeft2)
+            # #find parameters
+            offsetBackLeft1, offsetBackLeft2 = find_parameters_for_two_image_stack(imgBack_unwarped[:,int(W_remap/2):,:], imgLeft_unwarped[:,:int(W_remap/2),:], offsetBackLeft1, offsetBackLeft2)
+            offsetLeftFront1, offsetLeftFront2 = find_parameters_for_two_image_stack(imgLeft_unwarped[:,int(W_remap/2):,:], imgFront_unwarped[:,:int(W_remap/2),:], offsetLeftFront1, offsetLeftFront2)
+            offsetFrontRight1, offsetFrontRight2 = find_parameters_for_two_image_stack(imgFront_unwarped[:,int(W_remap/2):,:], imgRight_unwarped[:,:int(W_remap/2),:], offsetFrontRight1, offsetFrontRight2)
+            offsetRightBack1, offsetRightBack2 = find_parameters_for_two_image_stack(imgRight_unwarped[:,int(W_remap/2):,:], imgBack_unwarped[:,:int(W_remap/2),:], offsetRightBack1, offsetRightBack2)
             
-            offsetBackLeftFront1, offsetBackLeftFront2 = find_parameters_for_two_image_stack(stacked_back_left, imgFront_unwarped, offsetBackLeftFront1, offsetBackLeftFront2)
-            stacked_back_left_front = stack_two_images_with_offsets(stacked_back_left, imgFront_unwarped, offsetBackLeftFront1, offsetBackLeftFront2)
+            # concatenate images - stack_two_images_with_offsets - is only for two images, here will be 4, using it 3 times is stupid
+            #   then make stake 4 images? more code, but better readability
             
-            offsetBackLeftFrontRight1, offsetBackLeftFrontRight2 = find_parameters_for_two_image_stack(stacked_back_left_front, imgRight_unwarped, offsetBackLeftFrontRight1, offsetBackLeftFrontRight2)
-            stacked_back_left_front_right = stack_two_images_with_offsets(stacked_back_left_front, imgRight_unwarped, offsetBackLeftFrontRight1, offsetBackLeftFrontRight2)
-            cv2.imshow("Equirectangular_stack", stacked_back_left_front_right)
+            # WRITE SIMILAR USING ORB?
+            Equirectangular_stack = numpy.concatenate((
+                imgRight_unwarped[:,int(W_remap/2):-offsetRightBack1,:],
+                imgBack_unwarped[:,offsetRightBack2:-offsetBackLeft1,:],
+                imgLeft_unwarped[:,offsetBackLeft2:-offsetLeftFront1,:],
+                imgFront_unwarped[:,offsetLeftFront2:-offsetFrontRight1,:],
+                imgRight_unwarped[:,offsetFrontRight2:int(W_remap/2),:]
+                ), axis=1)
+            cv2.imshow("Equirectangular_stack", Equirectangular_stack)
             #end find parameters
+            
+            # cv2.waitKey(0)
+            # cv2.destroyAllWindows()
+            # sys.exit()
         
         else:
         
@@ -1056,7 +1071,6 @@ def main():
     """
     
     while True:
-        print("petla")
         successBack, imgBack = capBack.read()
         successLeft, imgLeft = capLeft.read()
         successFront, imgFront = capFront.read()
@@ -1101,14 +1115,22 @@ def main():
                     imgFront_unwarped = cv2.remap(imgFront, xmap, ymap, cv2.INTER_LINEAR)
                     imgRight_unwarped = cv2.remap(imgRight, xmap, ymap, cv2.INTER_LINEAR)
         
-                    stacked_back_left = stack_two_images_with_offsets(imgBack_unwarped,imgLeft_unwarped,offsetBackLeft1,offsetBackLeft2)
-                    stacked_back_left_front = stack_two_images_with_offsets(stacked_back_left,imgFront_unwarped,offsetBackLeftFront1,offsetBackLeftFront2)
-                    stacked_back_left_front_right = stack_two_images_with_offsets(stacked_back_left_front,imgRight_unwarped,offsetBackLeftFrontRight1,offsetBackLeftFrontRight2)
-                    cv2.imshow("Equirectangular_stack", stacked_back_left_front_right)
-                    print("here")
+                    # concatenate images - stack_two_images_with_offsets - is only for two images, here will be 4, using it 3 times is stupid
+                    #   then make stake 4 images? more code, but better readability
+                    
+                    # WRITE SIMILAR USING ORB?
+                    Equirectangular_stack = numpy.concatenate((
+                        imgRight_unwarped[:,int(W_remap/2):-offsetRightBack1,:],
+                        imgBack_unwarped[:,offsetRightBack2:-offsetBackLeft1,:],
+                        imgLeft_unwarped[:,offsetBackLeft2:-offsetLeftFront1,:],
+                        imgFront_unwarped[:,offsetLeftFront2:-offsetFrontRight1,:],
+                        imgRight_unwarped[:,offsetFrontRight2:int(W_remap/2),:]
+                        ), axis=1)
+                    cv2.imshow("Equirectangular_stack", Equirectangular_stack)
+                    #end find parameters
 
         
-                else: #Właciwie nie wiem co tu miało być
+                else: # Właciwie nie wiem co tu miało być
                     #stiching and equirectangular github
                     # undistortedBack = undistort(imgBack,K,D,DIM)
                     imgBackGRAY = cv2.cvtColor(imgBack,cv2.COLOR_BGR2GRAY)
@@ -1185,6 +1207,7 @@ if __name__ == '__main__':
     # USE_PREDEFINED_COMBINE_TOP_VIEW_PARAMETERS = True # to co jest to narazie tylko wstępne parametry, żeby łatwiej kalibrować
     USE_EQUIRECTANGULAR_METHOD = True
     # USE_PREDEFINED_EQURECTANGULAR_PARAMETERS = True # to co jest to narazie tylko wstępne parametry, żeby łatwiej kalibrować
+    USE_ORB_IN_EQUIRECTANGULAR_METHOD = False
     
     
     if ONLY_VALID_IMAGES_FOR_CAMERA_CALIBRATION is True:
