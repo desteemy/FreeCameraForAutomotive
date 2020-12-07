@@ -376,34 +376,50 @@ def get_affine_cv2(translationXY, rotation, scale, centerXY):
     return numpy.array([[a_11, a_12, a_13],
                      [a_21, a_22, a_23]])
 
-def find_parameters_for_combined_top_view(imgBack, imgLeft, imgFront, imgRight, Back_position=None, Left_position=None, Front_position=None, Right_position=None):
+def find_parameters_for_combined_top_view(imgBack, imgLeft, imgFront, imgRight, Back_position=None, Left_position=None, Front_position=None, Right_position=None, normalized = False):
     def emptyFunction(newValue):
         pass
-    
+
     cv2.namedWindow("TrackBars")
     cv2.resizeWindow("TrackBars", 1000, 500)
-    if Back_position is None or Left_position is None or Front_position is None or Right_position is None:
-        cv2.createTrackbar("vertical_offset_for_parallel", "TrackBars", int(imgFront.shape[1]/2),int(imgFront.shape[1]),emptyFunction)
-        cv2.createTrackbar("horizontal_offset_for_parallel", "TrackBars", int(imgLeft.shape[1]/4),int(imgLeft.shape[1]/2),emptyFunction)
-        cv2.createTrackbar("vertical_offset_for_perpendicular", "TrackBars", int(imgLeft.shape[0]/2),int(imgLeft.shape[0]),emptyFunction)
-        cv2.createTrackbar("horizontal_offset_for_perpendicular", "TrackBars", int(imgFront.shape[0]/2),int(imgFront.shape[0]),emptyFunction)
-        
-        cv2.createTrackbar("vertical_scale_for_parallel", "TrackBars", 49,99,emptyFunction)
-        cv2.createTrackbar("horizontal_scale_for_parallel", "TrackBars", 49,99,emptyFunction)
-        cv2.createTrackbar("vertical_scale_for_perpendicular", "TrackBars", 49,99,emptyFunction)
-        cv2.createTrackbar("horizontal_scale_for_perpendicular", "TrackBars", 49,99,emptyFunction)
-        
-    else:
-        cv2.createTrackbar("vertical_offset_for_parallel", "TrackBars", int(Back_position[0]),int(imgFront.shape[1]),emptyFunction)
-        cv2.createTrackbar("horizontal_offset_for_parallel", "TrackBars", int(Back_position[1]),int(imgLeft.shape[1]/2),emptyFunction)
-        cv2.createTrackbar("vertical_offset_for_perpendicular", "TrackBars", int(Right_position[0]),int(imgLeft.shape[0]),emptyFunction)
-        cv2.createTrackbar("horizontal_offset_for_perpendicular", "TrackBars", int(Right_position[1]),int(imgFront.shape[0]),emptyFunction)
-        
-        cv2.createTrackbar("vertical_scale_for_parallel", "TrackBars", int(Back_position[6]),99,emptyFunction)
-        cv2.createTrackbar("horizontal_scale_for_parallel", "TrackBars", int(Back_position[7]),99,emptyFunction)
-        cv2.createTrackbar("vertical_scale_for_perpendicular", "TrackBars", int(Right_position[6]),99,emptyFunction)
-        cv2.createTrackbar("horizontal_scale_for_perpendicular", "TrackBars", int(Right_position[7]),99,emptyFunction)
     
+    if normalized is False:
+        if Back_position is None or Left_position is None or Front_position is None or Right_position is None:
+            cv2.createTrackbar("vertical_offset_for_parallel", "TrackBars", int(imgFront.shape[1]/2),int(imgFront.shape[1]),emptyFunction)
+            cv2.createTrackbar("horizontal_offset_for_parallel", "TrackBars", int(imgLeft.shape[1]/4),int(imgLeft.shape[1]/2),emptyFunction)
+            cv2.createTrackbar("vertical_offset_for_perpendicular", "TrackBars", int(imgLeft.shape[0]/2),int(imgLeft.shape[0]),emptyFunction)
+            cv2.createTrackbar("horizontal_offset_for_perpendicular", "TrackBars", int(imgFront.shape[0]/2),int(imgFront.shape[0]),emptyFunction)
+            
+            cv2.createTrackbar("vertical_scale_for_parallel", "TrackBars", 49,99,emptyFunction)
+            cv2.createTrackbar("horizontal_scale_for_parallel", "TrackBars", 49,99,emptyFunction)
+            cv2.createTrackbar("vertical_scale_for_perpendicular", "TrackBars", 49,99,emptyFunction)
+            cv2.createTrackbar("horizontal_scale_for_perpendicular", "TrackBars", 49,99,emptyFunction)
+            
+        else:
+            cv2.createTrackbar("vertical_offset_for_parallel", "TrackBars", int(Back_position[0]),int(imgFront.shape[1]),emptyFunction)
+            cv2.createTrackbar("horizontal_offset_for_parallel", "TrackBars", int(Back_position[1]),int(imgLeft.shape[1]/2),emptyFunction)
+            cv2.createTrackbar("vertical_offset_for_perpendicular", "TrackBars", int(Right_position[0]),int(imgLeft.shape[0]),emptyFunction)
+            cv2.createTrackbar("horizontal_offset_for_perpendicular", "TrackBars", int(Right_position[1]),int(imgFront.shape[0]),emptyFunction)
+            
+            cv2.createTrackbar("vertical_scale_for_parallel", "TrackBars", int(Back_position[6]),99,emptyFunction)
+            cv2.createTrackbar("horizontal_scale_for_parallel", "TrackBars", int(Back_position[7]),99,emptyFunction)
+            cv2.createTrackbar("vertical_scale_for_perpendicular", "TrackBars", int(Right_position[6]),99,emptyFunction)
+            cv2.createTrackbar("horizontal_scale_for_perpendicular", "TrackBars", int(Right_position[7]),99,emptyFunction)
+    else:
+        if Back_position is None or Left_position is None or Front_position is None or Right_position is None:
+            raise SyntaxError("when normalized is true, all position matrix are rqeuired")
+        else:
+            # raise SyntaxError("This code is not yet implemented")
+            cv2.createTrackbar("vertical_offset_for_parallel", "TrackBars", int(Back_position[0] + imgFront.shape[1]/2),int(imgFront.shape[1]),emptyFunction)
+            cv2.createTrackbar("horizontal_offset_for_parallel", "TrackBars", int(Back_position[1] + imgLeft.shape[1]/4),int(imgLeft.shape[1]/2),emptyFunction)
+            cv2.createTrackbar("vertical_offset_for_perpendicular", "TrackBars", int(Right_position[0] + imgLeft.shape[0]/2),int(imgLeft.shape[0]),emptyFunction)
+            cv2.createTrackbar("horizontal_offset_for_perpendicular", "TrackBars", int(Right_position[1] + imgFront.shape[0]/2),int(imgFront.shape[0]),emptyFunction)
+            
+            cv2.createTrackbar("vertical_scale_for_parallel", "TrackBars", int(Back_position[6]*50-1),99,emptyFunction)
+            cv2.createTrackbar("horizontal_scale_for_parallel", "TrackBars", int(Back_position[7]*50-1),99,emptyFunction)
+            cv2.createTrackbar("vertical_scale_for_perpendicular", "TrackBars", int(Right_position[6]*50-1),99,emptyFunction)
+            cv2.createTrackbar("horizontal_scale_for_perpendicular", "TrackBars", int(Right_position[7]*50-1),99,emptyFunction)
+
     while True:
         #adjust parameters
         vertical_offset_for_parallel = cv2.getTrackbarPos("vertical_offset_for_parallel", "TrackBars") - int(imgFront.shape[1]/2)
@@ -417,7 +433,6 @@ def find_parameters_for_combined_top_view(imgBack, imgLeft, imgFront, imgRight, 
         horizontal_scale_for_perpendicular = (cv2.getTrackbarPos("horizontal_scale_for_perpendicular", "TrackBars") + 1)/50
         
         #calculate from parameters
-        
         Back_position = [vertical_offset_for_parallel,  horizontal_offset_for_parallel,  0,  \
                  0,  0,  0,     \
                      vertical_scale_for_parallel, horizontal_scale_for_parallel]
@@ -430,7 +445,7 @@ def find_parameters_for_combined_top_view(imgBack, imgLeft, imgFront, imgRight, 
         Right_position = [vertical_offset_for_perpendicular,  horizontal_offset_for_perpendicular,  0,  \
                  0,  0,  0,     \
                      vertical_scale_for_perpendicular, horizontal_scale_for_perpendicular]
-            
+
         #show images
         combined_top_view = combine_top_views(imgBack, imgLeft, imgFront, imgRight, Back_position, Left_position, Front_position, Right_position)
         cv2.imshow("combined_top_view", cv2.resize(combined_top_view, (0, 0), None, 0.8, 0.8))
@@ -573,8 +588,8 @@ def stack_two_images_with_offsets(img1,img2, offset1, offset2):
     # verticalSize = img1.shape[1] - offset1 + img2.shape[1] - offset2
     # depthSize = img1.shape[2]
     # stackedImage = numpy.zeros((horizontalSize, verticalSize), numpy.uint8)
-    #stackedImage = numpy.concatenate((img1[:,0:img1.shape[1]-offset1,:], img2[:,offset2:img2.shape[1],:]), axis=1)
-    stackedImage = numpy.concatenate((img1[:,0:img1.shape[1]-offset1,:], img2[:,offset2:,:]), axis=1)
+    #stackedImage = numpy.concatenate((img1[:,0:img1.shape[1]-offset1,:], img2[:,offset2:img2.shape[1],:]), axis=1) # old method, more complex indexes
+    stackedImage = numpy.concatenate((img1[:,:-offset1,:], img2[:,offset2:,:]), axis=1)
     return stackedImage
 
 def find_parameters_for_two_image_stack(img1, img2, offset1=0, offset2=0):
@@ -614,216 +629,231 @@ def find_parameters_for_two_image_stack(img1, img2, offset1=0, offset2=0):
     
     return offset1, offset2
 
-def warpTwoImages(img1, img2, H):
+def warpTwoImages(img1, img2, H = None, parameters = None):
     '''warp img2 to img1 with homograph H'''
     # https://stackoverflow.com/a/20355545
-    h1,w1 = img1.shape[:2]
-    h2,w2 = img2.shape[:2]
-    pts1 = numpy.float32([[0,0],[0,h1],[w1,h1],[w1,0]]).reshape(-1,1,2)
-    pts2 = numpy.float32([[0,0],[0,h2],[w2,h2],[w2,0]]).reshape(-1,1,2)
-    pts2_ = cv2.perspectiveTransform(pts2, H)
-    pts = numpy.concatenate((pts1, pts2_), axis=0)
-    [xmin, ymin] = numpy.int32(pts.min(axis=0).ravel() - 0.5)
-    [xmax, ymax] = numpy.int32(pts.max(axis=0).ravel() + 0.5)
-    t = [-xmin,-ymin]
-    Ht = numpy.array([[1,0,t[0]],[0,1,t[1]],[0,0,1]]) # translate
+    if H is not None:
+        h1,w1 = img1.shape[:2]
+        h2,w2 = img2.shape[:2]
+        pts1 = numpy.float32([[0,0],[0,h1],[w1,h1],[w1,0]]).reshape(-1,1,2)
+        pts2 = numpy.float32([[0,0],[0,h2],[w2,h2],[w2,0]]).reshape(-1,1,2)
+        pts2_ = cv2.perspectiveTransform(pts2, H)
+        pts = numpy.concatenate((pts1, pts2_), axis=0)
+        [xmin, ymin] = numpy.int32(pts.min(axis=0).ravel() - 0.5)
+        [xmax, ymax] = numpy.int32(pts.max(axis=0).ravel() + 0.5)
+        t = [-xmin,-ymin]
+        Ht = numpy.array([[1,0,t[0]],[0,1,t[1]],[0,0,1]]) # translate
 
-    result = cv2.warpPerspective(img2, Ht.dot(H), (xmax-xmin, ymax-ymin))
-    result[t[1]:h1+t[1],t[0]:w1+t[0]] = img1
-    return result
+        result = cv2.warpPerspective(img2, Ht.dot(H), (xmax-xmin, ymax-ymin))
+        result[t[1]:h1+t[1],t[0]:w1+t[0]] = img1
+        parameters = (Ht.dot(H), (xmax-xmin, ymax-ymin), (t[1], h1+t[1], t[0], w1+t[0]))
+        return result, parameters
+    
+    elif parameters is not None:
+        result = cv2.warpPerspective(img2, parameters[0], parameters[1])
+        result[parameters[2][0]:parameters[2][1],parameters[2][2]:parameters[2][3]] = img1
+        return result, parameters
+    
+    else:
+        raise SyntaxError("no H or parameters provided")
 
-def stitch_two_images_using_ORB(img1,img2): # there is also brisk algorithm in free cv2 library
-    # Compute key points and feature descriptors
-    # descriptor = cv2.ORB_create()
-    descriptor = cv2.BRISK_create()
-    (kp1, des1) = descriptor.detectAndCompute(img1, None)
-    (kp2, des2) = descriptor.detectAndCompute(img2, None)
-    # Using bruteforce, FLANN is faster, but can not be as accurate
-    # https://stackoverflow.com/questions/10610966/difference-between-bfmatcher-and-flannbasedmatcher
-    # https://docs.opencv2.org/3.4.1/dc/dc3/tutorial_py_matcher.html
+def stitch_two_images_using_ORB(img1,img2, parameters = None): # there is also brisk algorithm in free cv2 library
+    if parameters is None:
+        # Compute key points and feature descriptors
+        # descriptor = cv2.ORB_create()
+        descriptor = cv2.BRISK_create()
+        (kp1, des1) = descriptor.detectAndCompute(img1, None)
+        (kp2, des2) = descriptor.detectAndCompute(img2, None)
+        # Using bruteforce, FLANN is faster, but can not be as accurate
+        # https://stackoverflow.com/questions/10610966/difference-between-bfmatcher-and-flannbasedmatcher
+        # https://docs.opencv2.org/3.4.1/dc/dc3/tutorial_py_matcher.html
+        
+        
+        # BFMatcher with default params
+        # option 1
+        # bf = cv2.BFMatcher()
+        # matches = bf.knnMatch(des1,des2, k=2)
+        
+        # option 2
+        # bf = cv2.BFMatcher(cv2.NORM_HAMMING, crossCheck=False)
+        # matches = bf.knnMatch(des1,des2, k=2)
+        
+        # # Apply ratio test
+        # good_matches = []
+        # allmatchesm = []
+        # for m,n in matches:
+        #     allmatchesm.append(m)
+        #     if m.distance < 0.75*n.distance:
+        #         good_matches.append(m)
+                
+            
+        # def drawMatches(img1, kp1, img2, kp2, matches):
+        #     """
+        #     My own implementation of cv2.drawMatches as OpenCV 2.4.9
+        #     does not have this function available but it's supported in
+        #     OpenCV 3.0.0
+        
+        #     This function takes in two images with their associated 
+        #     keypoints, as well as a list of DMatch data structure (matches) 
+        #     that contains which keypoints matched in which images.
+        
+        #     An image will be produced where a montage is shown with
+        #     the first image followed by the second image beside it.
+        
+        #     Keypoints are delineated with circles, while lines are connected
+        #     between matching keypoints.
+        
+        #     img1,img2 - Grayscale images
+        #     kp1,kp2 - Detected list of keypoints through any of the OpenCV keypoint 
+        #               detection algorithms
+        #     matches - A list of matches of corresponding keypoints through any
+        #               OpenCV keypoint matching algorithm
+        #     """
+        
+        #     # Create a new output image that concatenates the two images together
+        #     # (a.k.a) a montage
+        #     rows1 = img1.shape[0]
+        #     cols1 = img1.shape[1]
+        #     rows2 = img2.shape[0]
+        #     cols2 = img2.shape[1]
+        
+        #     # Create the output image
+        #     # The rows of the output are the largest between the two images
+        #     # and the columns are simply the sum of the two together
+        #     # The intent is to make this a colour image, so make this 3 channels
+        #     out = numpy.zeros((max([rows1,rows2]),cols1+cols2,3), dtype='uint8')
+        
+        #     # Place the first image to the left
+        #     out[:rows1,:cols1] = numpy.dstack([img1, img1, img1])
+        
+        #     # Place the next image to the right of it
+        #     out[:rows2,cols1:] = numpy.dstack([img2, img2, img2])
+        
+        #     # For each pair of points we have between both images
+        #     # draw circles, then connect a line between them
+        #     for mat in matches:
+        
+        #         # Get the matching keypoints for each of the images
+        #         img1_idx = mat.queryIdx
+        #         img2_idx = mat.trainIdx
+        
+        #         # x - columns
+        #         # y - rows
+        #         (x1,y1) = kp1[img1_idx].pt
+        #         (x2,y2) = kp2[img2_idx].pt
+        
+        #         # Draw a small circle at both co-ordinates
+        #         # radius 4
+        #         # colour blue
+        #         # thickness = 1
+        #         cv2.circle(out, (int(x1),int(y1)), 4, (255, 0, 0), 1)   
+        #         cv2.circle(out, (int(x2)+cols1,int(y2)), 4, (255, 0, 0), 1)
+        
+        #         # Draw a line in between the two points
+        #         # thickness = 1
+        #         # colour blue
+        #         cv2.line(out, (int(x1),int(y1)), (int(x2)+cols1,int(y2)), (255,0,0), 1)
+        
+        
+        #     # Show the image
+        #     cv2.imshow('Matched Features', out)
+        #     cv2.waitKey(0)
+        #     cv2.destroyWindow('Matched Features')
+        
+        #     # Also return the image if you'd like a copy
+        #     return out
     
-    
-    # BFMatcher with default params
-    # option 1
-    # bf = cv2.BFMatcher()
-    # matches = bf.knnMatch(des1,des2, k=2)
-    
-    # option 2
-    # bf = cv2.BFMatcher(cv2.NORM_HAMMING, crossCheck=False)
-    # matches = bf.knnMatch(des1,des2, k=2)
-    
-    # # Apply ratio test
-    # good_matches = []
-    # allmatchesm = []
-    # for m,n in matches:
-    #     allmatchesm.append(m)
-    #     if m.distance < 0.75*n.distance:
-    #         good_matches.append(m)
+        # # cv2.drawMatchesKnn expects list of lists as matches.
+        # gray1 = cv2.cvtColor(img1,cv2.COLOR_BGR2GRAY)
+        # gray2 = cv2.cvtColor(img2,cv2.COLOR_BGR2GRAY)
+        # # drawMatches(gray1,kp1,gray2,kp2,allmatchesm) #draw all
+        # drawMatches(gray1,kp1,gray2,kp2,good_matches) # draw only best
+        
+        # MIN_MATCH_COUNT = 10 # moze mniej moze wiecej
+        # if len(good_matches)>MIN_MATCH_COUNT:
+        #     src_pts = numpy.float32([ kp1[m.queryIdx].pt for m in good_matches ]).reshape(-1,1,2)
+        #     dst_pts = numpy.float32([ kp2[m.trainIdx].pt for m in good_matches ]).reshape(-1,1,2)
+            
+        #     M, mask = cv2.findHomography(src_pts, dst_pts, cv2.RANSAC,5.0)
+        #     matchesMask = mask.ravel().tolist()
+            
+        #     h,w,d = img1.shape
+        #     pts = numpy.float32([ [0,0],[0,h-1],[w-1,h-1],[w-1,0] ]).reshape(-1,1,2)
+        #     dst = cv2.perspectiveTransform(pts,M)
+            
+        #     img2 = cv2.polylines(img2,[numpy.int32(dst)],True,255,3, cv2.LINE_AA)
+            
+        #     cv2.imshow("CoDo", img2)
+        #     cv2.waitKey(0)
+        #     cv2.destroyWindow("CoDo")
+        # else:
+        #     print( "Not enough matches are found - {}/{}".format(len(good_matches), MIN_MATCH_COUNT) )
+        #     matchesMask = None
             
         
-    # def drawMatches(img1, kp1, img2, kp2, matches):
-    #     """
-    #     My own implementation of cv2.drawMatches as OpenCV 2.4.9
-    #     does not have this function available but it's supported in
-    #     OpenCV 3.0.0
-    
-    #     This function takes in two images with their associated 
-    #     keypoints, as well as a list of DMatch data structure (matches) 
-    #     that contains which keypoints matched in which images.
-    
-    #     An image will be produced where a montage is shown with
-    #     the first image followed by the second image beside it.
-    
-    #     Keypoints are delineated with circles, while lines are connected
-    #     between matching keypoints.
-    
-    #     img1,img2 - Grayscale images
-    #     kp1,kp2 - Detected list of keypoints through any of the OpenCV keypoint 
-    #               detection algorithms
-    #     matches - A list of matches of corresponding keypoints through any
-    #               OpenCV keypoint matching algorithm
-    #     """
-    
-    #     # Create a new output image that concatenates the two images together
-    #     # (a.k.a) a montage
-    #     rows1 = img1.shape[0]
-    #     cols1 = img1.shape[1]
-    #     rows2 = img2.shape[0]
-    #     cols2 = img2.shape[1]
-    
-    #     # Create the output image
-    #     # The rows of the output are the largest between the two images
-    #     # and the columns are simply the sum of the two together
-    #     # The intent is to make this a colour image, so make this 3 channels
-    #     out = numpy.zeros((max([rows1,rows2]),cols1+cols2,3), dtype='uint8')
-    
-    #     # Place the first image to the left
-    #     out[:rows1,:cols1] = numpy.dstack([img1, img1, img1])
-    
-    #     # Place the next image to the right of it
-    #     out[:rows2,cols1:] = numpy.dstack([img2, img2, img2])
-    
-    #     # For each pair of points we have between both images
-    #     # draw circles, then connect a line between them
-    #     for mat in matches:
-    
-    #         # Get the matching keypoints for each of the images
-    #         img1_idx = mat.queryIdx
-    #         img2_idx = mat.trainIdx
-    
-    #         # x - columns
-    #         # y - rows
-    #         (x1,y1) = kp1[img1_idx].pt
-    #         (x2,y2) = kp2[img2_idx].pt
-    
-    #         # Draw a small circle at both co-ordinates
-    #         # radius 4
-    #         # colour blue
-    #         # thickness = 1
-    #         cv2.circle(out, (int(x1),int(y1)), 4, (255, 0, 0), 1)   
-    #         cv2.circle(out, (int(x2)+cols1,int(y2)), 4, (255, 0, 0), 1)
-    
-    #         # Draw a line in between the two points
-    #         # thickness = 1
-    #         # colour blue
-    #         cv2.line(out, (int(x1),int(y1)), (int(x2)+cols1,int(y2)), (255,0,0), 1)
-    
-    
-    #     # Show the image
-    #     cv2.imshow('Matched Features', out)
-    #     cv2.waitKey(0)
-    #     cv2.destroyWindow('Matched Features')
-    
-    #     # Also return the image if you'd like a copy
-    #     return out
-
-    # # cv2.drawMatchesKnn expects list of lists as matches.
-    # gray1 = cv2.cvtColor(img1,cv2.COLOR_BGR2GRAY)
-    # gray2 = cv2.cvtColor(img2,cv2.COLOR_BGR2GRAY)
-    # # drawMatches(gray1,kp1,gray2,kp2,allmatchesm) #draw all
-    # drawMatches(gray1,kp1,gray2,kp2,good_matches) # draw only best
-    
-    # MIN_MATCH_COUNT = 10 # moze mniej moze wiecej
-    # if len(good_matches)>MIN_MATCH_COUNT:
-    #     src_pts = numpy.float32([ kp1[m.queryIdx].pt for m in good_matches ]).reshape(-1,1,2)
-    #     dst_pts = numpy.float32([ kp2[m.trainIdx].pt for m in good_matches ]).reshape(-1,1,2)
+        #option 3
+        # create BFMatcher object
+        bf = cv2.BFMatcher(cv2.NORM_HAMMING, crossCheck=True)
+        # Match descriptors.
+        matches = bf.match(des1,des2)
+        # Sort them in the order of their distance.
+        matches = sorted(matches, key = lambda x:x.distance)
+        # Draw first 10 matches.
+        # img3 = cv2.drawMatches(img1,kp1,img2,kp2,matches[:10],None,flags=cv2.DrawMatchesFlags_NOT_DRAW_SINGLE_POINTS)
         
-    #     M, mask = cv2.findHomography(src_pts, dst_pts, cv2.RANSAC,5.0)
-    #     matchesMask = mask.ravel().tolist()
+        # img1 = query image, img2 = train image
+        good_key_point_in_img1 = []
+        good_key_point_in_img2 = []
+        for match in matches[:100]:
+            good_key_point_in_img1.append((kp1[match.queryIdx].pt[0], kp1[match.queryIdx].pt[1]))
+            good_key_point_in_img2.append((kp2[match.trainIdx].pt[0], kp2[match.trainIdx].pt[1]))
         
-    #     h,w,d = img1.shape
-    #     pts = numpy.float32([ [0,0],[0,h-1],[w-1,h-1],[w-1,0] ]).reshape(-1,1,2)
-    #     dst = cv2.perspectiveTransform(pts,M)
+        good_key_point_in_img1 = numpy.array(good_key_point_in_img1, dtype=numpy.float32)
+        good_key_point_in_img2 = numpy.array(good_key_point_in_img2, dtype=numpy.float32)
+    
+        # # Draw first 10 matches from key points.
+        # img4 = numpy.concatenate((img1, img2), axis=1)
+        # for i in range(10):
+        #     point1 = int(good_key_point_in_img1[i,0]), int(good_key_point_in_img1[i,1])
+        #     point2 = int(good_key_point_in_img2[i,0]), int(good_key_point_in_img2[i,1])
+        #     cv2.circle(img4, (point1[0],point1[1]), radius=10, color=(0, 0, 255), thickness=-1)
+        #     cv2.circle(img4, (point2[0]+img1.shape[1],point2[1]), radius=10, color=(0, 0, 255), thickness=-1)
+        #     cv2.line(img4, (point1[0],point1[1]), (point2[0]+img1.shape[1],point2[1]), (0, 255, 0), thickness=5)
+        # cv2.imshow("Best points", cv2.resize(img4, (0, 0), None, 0.5, 0.5))
+        # cv2.waitKey(0)
+        # cv2.destroyWindow("Best points")
+        # sys.exit()
         
-    #     img2 = cv2.polylines(img2,[numpy.int32(dst)],True,255,3, cv2.LINE_AA)
+        M, mask = cv2.findHomography(good_key_point_in_img2, good_key_point_in_img1, cv2.RANSAC,5.0)
+    
+        # print("Mask")
+        # print(mask)
+        # print("M")
+        # print(M)
+        # cv2.imshow("Matched Features", img3)
+        # cv2.waitKey(0)
+        # cv2.destroyWindow("Matched Features")
         
-    #     cv2.imshow("CoDo", img2)
-    #     cv2.waitKey(0)
-    #     cv2.destroyWindow("CoDo")
-    # else:
-    #     print( "Not enough matches are found - {}/{}".format(len(good_matches), MIN_MATCH_COUNT) )
-    #     matchesMask = None
+        #Dzialajaca 50/50 xD
+        # # Apply panorama correction
+        # width = img2.shape[1] + img1.shape[1]
+        # height = img2.shape[0] + img1.shape[0]
         
+        # result = cv2.warpPerspective(img1, M, (width, height))
+        # # result = cv2.perspectiveTransform(img2,M)
+        # result[0:img2.shape[0], 0:img2.shape[1]] = img2
+        
+        # Poprawna metoda
+        result, parameters = warpTwoImages(img1, img2, H = M)
+        
+        # cv2.imshow("Panorama", cv2.resize(result, (0, 0), None, 0.5, 0.5))
+        # cv2.waitKey(0)
+        # cv2.destroyWindow("Panorama")
+        
+    else:
+        result, parameters = warpTwoImages(img1, img2, parameters = parameters)
     
-    #option 3
-    # create BFMatcher object
-    bf = cv2.BFMatcher(cv2.NORM_HAMMING, crossCheck=True)
-    # Match descriptors.
-    matches = bf.match(des1,des2)
-    # Sort them in the order of their distance.
-    matches = sorted(matches, key = lambda x:x.distance)
-    # Draw first 10 matches.
-    # img3 = cv2.drawMatches(img1,kp1,img2,kp2,matches[:10],None,flags=cv2.DrawMatchesFlags_NOT_DRAW_SINGLE_POINTS)
-    
-    # img1 = query image, img2 = train image
-    good_key_point_in_img1 = []
-    good_key_point_in_img2 = []
-    for match in matches[:100]:
-        good_key_point_in_img1.append((kp1[match.queryIdx].pt[0], kp1[match.queryIdx].pt[1]))
-        good_key_point_in_img2.append((kp2[match.trainIdx].pt[0], kp2[match.trainIdx].pt[1]))
-    
-    good_key_point_in_img1 = numpy.array(good_key_point_in_img1, dtype=numpy.float32)
-    good_key_point_in_img2 = numpy.array(good_key_point_in_img2, dtype=numpy.float32)
-
-    # # Draw first 10 matches from key points.
-    # img4 = numpy.concatenate((img1, img2), axis=1)
-    # for i in range(10):
-    #     point1 = int(good_key_point_in_img1[i,0]), int(good_key_point_in_img1[i,1])
-    #     point2 = int(good_key_point_in_img2[i,0]), int(good_key_point_in_img2[i,1])
-    #     cv2.circle(img4, (point1[0],point1[1]), radius=10, color=(0, 0, 255), thickness=-1)
-    #     cv2.circle(img4, (point2[0]+img1.shape[1],point2[1]), radius=10, color=(0, 0, 255), thickness=-1)
-    #     cv2.line(img4, (point1[0],point1[1]), (point2[0]+img1.shape[1],point2[1]), (0, 255, 0), thickness=5)
-    # cv2.imshow("Best points", cv2.resize(img4, (0, 0), None, 0.5, 0.5))
-    # cv2.waitKey(0)
-    # cv2.destroyWindow("Best points")
-    # sys.exit()
-    
-    M, mask = cv2.findHomography(good_key_point_in_img2, good_key_point_in_img1, cv2.RANSAC,5.0)
-
-    # print("Mask")
-    # print(mask)
-    # print("M")
-    # print(M)
-    # cv2.imshow("Matched Features", img3)
-    # cv2.waitKey(0)
-    # cv2.destroyWindow("Matched Features")
-    
-    #Dzialajaca 50/50 xD
-    # # Apply panorama correction
-    # width = img2.shape[1] + img1.shape[1]
-    # height = img2.shape[0] + img1.shape[0]
-    
-    # result = cv2.warpPerspective(img1, M, (width, height))
-    # # result = cv2.perspectiveTransform(img2,M)
-    # result[0:img2.shape[0], 0:img2.shape[1]] = img2
-    
-    # Poprawna metoda
-    result = warpTwoImages(img1, img2, M)
-    
-    # cv2.imshow("Panorama", cv2.resize(result, (0, 0), None, 0.5, 0.5))
-    # cv2.waitKey(0)
-    # cv2.destroyWindow("Panorama")
-    return result
+    return result, parameters
 
 
 def main():
@@ -896,7 +926,7 @@ def main():
         imgLeft_unwarped0 = undistort3(imgLeft,K,D,DIM)
         imgFront_unwarped0 = undistort3(imgFront,K,D,DIM)
         imgRight_unwarped0 = undistort3(imgRight,K,D,DIM)
-        img3 = numpy.concatenate((imgBack_unwarped0, imgLeft_unwarped0, imgFront_unwarped0, imgRight_unwarped0), axis=1)
+        # img3 = numpy.concatenate((imgBack_unwarped0, imgLeft_unwarped0, imgFront_unwarped0, imgRight_unwarped0), axis=1)
     
         if USE_PREDEFINED_TOP_VIEW_PARAMETERS is True:
             shrinking_parameter = 300
@@ -909,49 +939,51 @@ def main():
         imgLeft_topview = make_top_view(imgLeft_unwarped0, shrinking_parameter=shrinking_parameter, crop_top=crop_top, crop_bottom=crop_bottom)
         imgFront_topview = make_top_view(imgFront_unwarped0, shrinking_parameter=shrinking_parameter, crop_top=crop_top, crop_bottom=crop_bottom)
         imgRight_topview = make_top_view(imgRight_unwarped0, shrinking_parameter=shrinking_parameter, crop_top=crop_top, crop_bottom=crop_bottom)
-        img4 = numpy.concatenate((imgBack_topview, imgLeft_topview, imgFront_topview, imgRight_topview), axis=1)
-        cv2.imshow("Unwarped by undistort in line", cv2.resize(img3, (0, 0), None, 0.5, 0.5))
-        cv2.imshow("Top view", cv2.resize(img4, (0, 0), None, 0.5, 0.5))
-        cv2.waitKey(0)
-        cv2.destroyAllWindows()
+        # img4 = numpy.concatenate((imgBack_topview, imgLeft_topview, imgFront_topview, imgRight_topview), axis=1)
+        # cv2.imshow("Unwarped by undistort in line", cv2.resize(img3, (0, 0), None, 0.5, 0.5))
+        # cv2.imshow("Top view", cv2.resize(img4, (0, 0), None, 0.5, 0.5))
+        # cv2.waitKey(0)
+        # cv2.destroyAllWindows()
         # sys.exit()
         
-        # Back_position = [0, 8, 0, 0, 0, 0, 1.38, 0.56]
-        # Left_position = [0, 0, 0, 0, 0, 0, 0.54, 1.56]
-        # Front_position = [0, -8, 0, 0, 0, 0, 1.38, 0.56]
-        # Right_position = [0, 0, 0, 0, 0, 0, 0.54, 1.56]
         
-        vertical_offset_for_parallel = 320
-        horizontal_offset_for_parallel = 160
-        vertical_offset_for_perpendicular = 150
-        horizontal_offset_for_perpendicular = 145
+        if USE_PREDEFINED_COMBINE_TOP_VIEW_PARAMETERS is True:
+            # Back_position = [0, 8, 0, 0, 0, 0, 1.38, 0.56]
+            # Left_position = [0, 0, 0, 0, 0, 0, 0.54, 1.56]
+            # Front_position = [0, -8, 0, 0, 0, 0, 1.38, 0.56]
+            # Right_position = [0, 0, 0, 0, 0, 0, 0.54, 1.56]
         
-        vertical_scale_for_parallel = 75
-        horizontal_scale_for_parallel = 30
-        vertical_scale_for_perpendicular = 29
-        horizontal_scale_for_perpendicular = 76
-        Back_position = [vertical_offset_for_parallel,  horizontal_offset_for_parallel,  0,  \
-                  0,  0,  0,     \
-                      vertical_scale_for_parallel, horizontal_scale_for_parallel]
-        Left_position = [-vertical_offset_for_perpendicular,  horizontal_offset_for_perpendicular,  0,  \
-                  0,  0,  0,     \
-                      vertical_scale_for_perpendicular, horizontal_scale_for_perpendicular]
-        Front_position = [vertical_offset_for_parallel,  -horizontal_offset_for_parallel,  0,  \
-                  0,  0,  0,     \
-                      vertical_scale_for_parallel, horizontal_scale_for_parallel]
-        Right_position = [vertical_offset_for_perpendicular,  horizontal_offset_for_perpendicular,  0,  \
-                  0,  0,  0,     \
-                      vertical_scale_for_perpendicular, horizontal_scale_for_perpendicular]
-        Back_position, Left_position, Front_position, Right_position = find_parameters_for_combined_top_view(imgBack_topview, imgLeft_topview, imgFront_topview, imgRight_topview, Back_position, Left_position, Front_position, Right_position)
-        # print("Back_position")
-        # print(Back_position)
-        # print("Left_position")
-        # print(Left_position)
-        # print("Front_position")
-        # print(Front_position)
-        # print("Right_position")
-        # print(Right_position)
-        
+            Back_position = [0, 0, 0, 0, 0, 0, 1.52, 0.62]
+            Left_position = [0, -5, 0, 0, 0, 0, 0.6, 1.54]
+            Front_position = [0, 0, 0, 0, 0, 0, 1.52, 0.62]
+            Right_position = [0, -5, 0, 0, 0, 0, 0.6, 1.54]
+            Back_position, Left_position, Front_position, Right_position = find_parameters_for_combined_top_view(imgBack_topview, imgLeft_topview, imgFront_topview, imgRight_topview, Back_position, Left_position, Front_position, Right_position, normalized = True)
+            
+        else:
+            vertical_offset_for_parallel = 320
+            horizontal_offset_for_parallel = 160
+            vertical_offset_for_perpendicular = 150
+            horizontal_offset_for_perpendicular = 145
+            
+            vertical_scale_for_parallel = 75
+            horizontal_scale_for_parallel = 30
+            vertical_scale_for_perpendicular = 29
+            horizontal_scale_for_perpendicular = 76
+            Back_position = [vertical_offset_for_parallel,  horizontal_offset_for_parallel,  0,  \
+                      0,  0,  0,     \
+                          vertical_scale_for_parallel, horizontal_scale_for_parallel]
+            Left_position = [-vertical_offset_for_perpendicular,  horizontal_offset_for_perpendicular,  0,  \
+                      0,  0,  0,     \
+                          vertical_scale_for_perpendicular, horizontal_scale_for_perpendicular]
+            Front_position = [vertical_offset_for_parallel,  -horizontal_offset_for_parallel,  0,  \
+                      0,  0,  0,     \
+                          vertical_scale_for_parallel, horizontal_scale_for_parallel]
+            Right_position = [vertical_offset_for_perpendicular,  horizontal_offset_for_perpendicular,  0,  \
+                      0,  0,  0,     \
+                          vertical_scale_for_perpendicular, horizontal_scale_for_perpendicular]
+
+            Back_position, Left_position, Front_position, Right_position = find_parameters_for_combined_top_view(imgBack_topview, imgLeft_topview, imgFront_topview, imgRight_topview, Back_position, Left_position, Front_position, Right_position, normalized = False)
+             
         
         combined_top_view = combine_top_views(imgBack_topview, imgLeft_topview, imgFront_topview, imgRight_topview, Back_position, Left_position, Front_position, Right_position)
         #cv2.imshow("Top View image", combined_top_view)
@@ -983,9 +1015,7 @@ def main():
         
                 
         if USE_EQUIRECTANGULAR_METHOD is True:
-
             # Use starting parameters for equirectangular
-            #if USE_PREDEFINED_EQURECTANGULAR_PARAMETERS is True:
             offsetBackLeft1 = 167
             offsetBackLeft2 = 167
             offsetLeftFront1 = 167
@@ -994,16 +1024,16 @@ def main():
             offsetFrontRight2 = 167
             offsetRightBack1 = 167
             offsetRightBack2 = 167
-    
-            # #find parameters
-            offsetBackLeft1, offsetBackLeft2 = find_parameters_for_two_image_stack(imgBack_unwarped[:,int(W_remap/2):,:], imgLeft_unwarped[:,:int(W_remap/2),:], offsetBackLeft1, offsetBackLeft2)
-            offsetLeftFront1, offsetLeftFront2 = find_parameters_for_two_image_stack(imgLeft_unwarped[:,int(W_remap/2):,:], imgFront_unwarped[:,:int(W_remap/2),:], offsetLeftFront1, offsetLeftFront2)
-            offsetFrontRight1, offsetFrontRight2 = find_parameters_for_two_image_stack(imgFront_unwarped[:,int(W_remap/2):,:], imgRight_unwarped[:,:int(W_remap/2),:], offsetFrontRight1, offsetFrontRight2)
-            offsetRightBack1, offsetRightBack2 = find_parameters_for_two_image_stack(imgRight_unwarped[:,int(W_remap/2):,:], imgBack_unwarped[:,:int(W_remap/2),:], offsetRightBack1, offsetRightBack2)
+            
+            if USE_PREDEFINED_EQURECTANGULAR_PARAMETERS is False:
+                # find parameters
+                offsetBackLeft1, offsetBackLeft2 = find_parameters_for_two_image_stack(imgBack_unwarped[:,int(W_remap/2):,:], imgLeft_unwarped[:,:int(W_remap/2),:], offsetBackLeft1, offsetBackLeft2)
+                offsetLeftFront1, offsetLeftFront2 = find_parameters_for_two_image_stack(imgLeft_unwarped[:,int(W_remap/2):,:], imgFront_unwarped[:,:int(W_remap/2),:], offsetLeftFront1, offsetLeftFront2)
+                offsetFrontRight1, offsetFrontRight2 = find_parameters_for_two_image_stack(imgFront_unwarped[:,int(W_remap/2):,:], imgRight_unwarped[:,:int(W_remap/2),:], offsetFrontRight1, offsetFrontRight2)
+                offsetRightBack1, offsetRightBack2 = find_parameters_for_two_image_stack(imgRight_unwarped[:,int(W_remap/2):,:], imgBack_unwarped[:,:int(W_remap/2),:], offsetRightBack1, offsetRightBack2)
             
             # concatenate images - stack_two_images_with_offsets - is only for two images, here will be 4, using it 3 times is stupid
             #   then make stake 4 images? more code, but better readability
-            
             # WRITE SIMILAR USING ORB?
             Equirectangular_stack = numpy.concatenate((
                 imgRight_unwarped[:,int(W_remap/2):-offsetRightBack1,:],
@@ -1013,13 +1043,12 @@ def main():
                 imgRight_unwarped[:,offsetFrontRight2:int(W_remap/2),:]
                 ), axis=1)
             cv2.imshow("Equirectangular_stack", Equirectangular_stack)
-            #end find parameters
             
             # cv2.waitKey(0)
             # cv2.destroyAllWindows()
             # sys.exit()
         
-        else:
+        elif USE_ORB_IN_EQUIRECTANGULAR_METHOD is True:
         
             #stitch unwarped images
             # vertical_stitching_offset = 40
@@ -1027,15 +1056,15 @@ def main():
             horizontal_stitching_offset = 80
             # Zrobic to tak, ze funkcja dostaje mniejsze ROI do poszukiwania cech wspolnych, a pozniej przesunac punkty, bedzie szbysze i dokladniejsze
             #opcja z doklejaniem
-            # stitched_BL = stitch_two_images_using_ORB(imgBack_unwarped[horizontal_stitching_offset:H-horizontal_stitching_offset, vertical_stitching_offset:W_remap-vertical_stitching_offset, :],imgLeft_unwarped[horizontal_stitching_offset:H-horizontal_stitching_offset, vertical_stitching_offset:W_remap-vertical_stitching_offset, :])
-            # stitched_BLF = stitch_two_images_using_ORB(stitched_BL,imgFront_unwarped[horizontal_stitching_offset:H-horizontal_stitching_offset, vertical_stitching_offset:W_remap-vertical_stitching_offset, :])
-            # stitched_BLFR = stitch_two_images_using_ORB(stitched_BLF,imgRight_unwarped[horizontal_stitching_offset:H-horizontal_stitching_offset, vertical_stitching_offset:W_remap-vertical_stitching_offset, :])
+            # stitched_BL, parameters_BL = stitch_two_images_using_ORB(imgBack_unwarped[horizontal_stitching_offset:H-horizontal_stitching_offset, vertical_stitching_offset:W_remap-vertical_stitching_offset, :],imgLeft_unwarped[horizontal_stitching_offset:H-horizontal_stitching_offset, vertical_stitching_offset:W_remap-vertical_stitching_offset, :])
+            # stitched_BLF, parameters_BLF = stitch_two_images_using_ORB(stitched_BL,imgFront_unwarped[horizontal_stitching_offset:H-horizontal_stitching_offset, vertical_stitching_offset:W_remap-vertical_stitching_offset, :])
+            # stitched_BLFR, parameters_BLFR = stitch_two_images_using_ORB(stitched_BLF,imgRight_unwarped[horizontal_stitching_offset:H-horizontal_stitching_offset, vertical_stitching_offset:W_remap-vertical_stitching_offset, :])
             # print("BLFR\n")
             # print(stitched_BLFR.shape)
             #opcja rownolegla
-            stitched_BL = stitch_two_images_using_ORB(imgBack_unwarped[horizontal_stitching_offset:H-horizontal_stitching_offset, vertical_stitching_offset:W_remap-vertical_stitching_offset, :],imgLeft_unwarped[horizontal_stitching_offset:H-horizontal_stitching_offset, vertical_stitching_offset:W_remap-vertical_stitching_offset, :])
-            stitched_FR = stitch_two_images_using_ORB(imgRight_unwarped[horizontal_stitching_offset:H-horizontal_stitching_offset, vertical_stitching_offset:W_remap-vertical_stitching_offset, :],imgFront_unwarped[horizontal_stitching_offset:H-horizontal_stitching_offset, vertical_stitching_offset:W_remap-vertical_stitching_offset, :])
-            stitched_BLRF = stitch_two_images_using_ORB(stitched_BL,stitched_FR)
+            stitched_BL, parameters_BL = stitch_two_images_using_ORB(imgBack_unwarped[horizontal_stitching_offset:H-horizontal_stitching_offset, vertical_stitching_offset:W_remap-vertical_stitching_offset, :],imgLeft_unwarped[horizontal_stitching_offset:H-horizontal_stitching_offset, vertical_stitching_offset:W_remap-vertical_stitching_offset, :])
+            stitched_FR, parameters_FR = stitch_two_images_using_ORB(imgRight_unwarped[horizontal_stitching_offset:H-horizontal_stitching_offset, vertical_stitching_offset:W_remap-vertical_stitching_offset, :],imgFront_unwarped[horizontal_stitching_offset:H-horizontal_stitching_offset, vertical_stitching_offset:W_remap-vertical_stitching_offset, :])
+            stitched_BLRF, parameters_BLRF = stitch_two_images_using_ORB(stitched_BL,stitched_FR)
             # print("BLRF\n")
             # print(stitched_BLRF.shape)
             
@@ -1053,7 +1082,7 @@ def main():
             # sys.exit()
 
         
-        
+            # Co tu było właciwie zamierzone?
             #find parameters
             offsetBackLeft1, offsetBackLeft2 = find_parameters_for_two_image_stack(imgBack,imgLeft)
             stacked_back_left = stack_two_images_with_offsets(imgBack,imgLeft,offsetBackLeft1,offsetBackLeft2)
@@ -1065,6 +1094,9 @@ def main():
             stacked_back_left_front_right = stack_two_images_with_offsets(stacked_back_left_front,imgRight,offsetBackLeftFrontRight1,offsetBackLeftFrontRight2)
             cv2.imshow("stacked_back_left_front_right", stacked_back_left_front_right)
             #end find parameters
+            
+        else:
+            raise SyntaxError("USE_EQUIRECTANGULAR_METHOD or USE_ORB_IN_EQUIRECTANGULAR_METHOD must be True")
     
     """
     Read frames continously
@@ -1117,7 +1149,6 @@ def main():
         
                     # concatenate images - stack_two_images_with_offsets - is only for two images, here will be 4, using it 3 times is stupid
                     #   then make stake 4 images? more code, but better readability
-                    
                     # WRITE SIMILAR USING ORB?
                     Equirectangular_stack = numpy.concatenate((
                         imgRight_unwarped[:,int(W_remap/2):-offsetRightBack1,:],
@@ -1127,10 +1158,9 @@ def main():
                         imgRight_unwarped[:,offsetFrontRight2:int(W_remap/2),:]
                         ), axis=1)
                     cv2.imshow("Equirectangular_stack", Equirectangular_stack)
-                    #end find parameters
 
         
-                else: # Właciwie nie wiem co tu miało być
+                elif USE_ORB_IN_EQUIRECTANGULAR_METHOD is True: # Właciwie nie wiem co tu miało być
                     #stiching and equirectangular github
                     # undistortedBack = undistort(imgBack,K,D,DIM)
                     imgBackGRAY = cv2.cvtColor(imgBack,cv2.COLOR_BGR2GRAY)
@@ -1158,8 +1188,9 @@ def main():
                                  ))
                     cv2.imshow("stacked", stacked)
             
-            # stackedTwo = stack_two_images_with_offsets(imgLeft,imgFront,100,100)
-            # cv2.imshow("stackedTwo", stackedTwo)
+                
+                else:
+                    raise SyntaxError("USE_EQUIRECTANGULAR_METHOD or USE_ORB_IN_EQUIRECTANGULAR_METHOD must be True")
         
             #loop video
             if frame_counter == capBack.get(cv2.CAP_PROP_FRAME_COUNT) or \
@@ -1180,12 +1211,8 @@ def main():
     # cv2.destroyWindow("UndistortedLeft")
     # cv2.destroyWindow("UndistortedFront")
     # cv2.destroyWindow("UndistortedRight")
-    cv2.destroyWindow("stacked")
-    cv2.destroyWindow("stacked_back_left_front_right")
-    
-    
-    # offsetBackLeft1, offsetBackLeft2 = find_parameters_for_two_image_stack(imgBack,imgLeft)
-    # stacked_back_left = stack_two_images_with_offsets(imgBack,imgLeft,offsetBackLeft1,offsetBackLeft2)
+    # cv2.destroyWindow("stacked")
+    # cv2.destroyWindow("stacked_back_left_front_right")
     
     cv2.destroyAllWindows()
     capBack.release()
@@ -1200,13 +1227,16 @@ Start here
 
 if __name__ == '__main__':
     # Declare parameters of program
-    ONLY_TOP_VIEW = False
     USE_PREDEFINED_CAMERA_PARAMETERS = True
     ONLY_VALID_IMAGES_FOR_CAMERA_CALIBRATION = False
+    
+    ONLY_TOP_VIEW = True
     USE_PREDEFINED_TOP_VIEW_PARAMETERS = True
-    # USE_PREDEFINED_COMBINE_TOP_VIEW_PARAMETERS = True # to co jest to narazie tylko wstępne parametry, żeby łatwiej kalibrować
+    USE_PREDEFINED_COMBINE_TOP_VIEW_PARAMETERS = True # False - ale ciagle sa wstepne
+    
     USE_EQUIRECTANGULAR_METHOD = True
-    # USE_PREDEFINED_EQURECTANGULAR_PARAMETERS = True # to co jest to narazie tylko wstępne parametry, żeby łatwiej kalibrować
+    USE_PREDEFINED_EQURECTANGULAR_PARAMETERS = True # False - ale ciagle sa wstepne
+    
     USE_ORB_IN_EQUIRECTANGULAR_METHOD = False
     
     
@@ -1219,15 +1249,28 @@ if __name__ == '__main__':
         only_valid_images_for_calibration.append("dataset5/0058.jpg")
         only_valid_images_for_calibration.append("dataset5/0067.jpg")
     
-    
     main()
-
+    # try:
+    #     main()
+    # except Exception:
+    #     print("type: \t\t", sys.exc_info()[0].__name__, 
+    #           "\nfilename: \t", os.path.split(sys.exc_info()[2].tb_frame.f_code.co_filename)[1], 
+    #           "\nlineo: \t\t", sys.exc_info()[2].tb_lineno,
+    #           #"\nname: \t", sys.exc_info()[2].tb_frame.f_code.co_name,
+    #           "\nmessage: \t", sys.exc_info()[1])
 
 # #test laczenia zdjec
 # testowe0 = cv2.imread("zdjTestPanoramy2.png")
 # testowe1 = cv2.imread("zdjTestPanoramy3.png")
 
-# stitch_two_images_using_ORB(cv2.resize(testowe0, (0, 0), None, 0.5, 0.5), cv2.resize(testowe1, (0, 0), None, 0.5, 0.5))
+# stitched_using_orb, parameters = stitch_two_images_using_ORB(cv2.resize(testowe0, (0, 0), None, 0.5, 0.5), cv2.resize(testowe1, (0, 0), None, 0.5, 0.5))
+# stitched_using_orb_and_parameters, parameters2 = stitch_two_images_using_ORB(cv2.resize(testowe0, (0, 0), None, 0.5, 0.5), cv2.resize(testowe1, (0, 0), None, 0.5, 0.5), parameters=parameters)
+# assert parameters == parameters2
+# cv2.imshow("Result", stitched_using_orb)
+# cv2.imshow("Result_with_parameters", stitched_using_orb_and_parameters)
+# cv2.waitKey(0)
+# cv2.destroyAllWindows()
+# #end test laczenia zdjec
 
 # #test przeksztalcenia aficznego
 # img = cv2.imread("zdjTestPanoramy2.png")
