@@ -844,16 +844,17 @@ def stitch_two_images_using_ORB(img1,img2, parameters = None): # there is also b
 class Main():
 
     def __init__(self):
+        self.load_cameras()
+        self.frame_counter = 0
         self.calibrate_camera()
+
         
+    def load_cameras(self):
         self.capBack = cv2.VideoCapture("260-290mp4/Back_0260-0290.mp4")
         self.capLeft = cv2.VideoCapture("260-290mp4/Left_0260-0290.mp4")
         self.capFront = cv2.VideoCapture("260-290mp4/Front_0260-0290.mp4")
         self.capRight = cv2.VideoCapture("260-290mp4/Right_0260-0290.mp4")
-        self.frame_counter = 0
         
-        self.first_frame()
-        self.read_frames_continously()
         
     def calibrate_camera(self):
         """
@@ -865,14 +866,14 @@ class Main():
             self.D = numpy.array([[-0.02236163741176025], [-0.01566355538478192], [0.0066695817100666304], [-0.0009867103996664935]])
             self.DIM =(640, 640)
         elif ONLY_VALID_IMAGES_FOR_CAMERA_CALIBRATION is True:
-            self.calibrationDirectory = only_valid_images_for_calibration
-            self.K, self.D, self.DIM = getCameraParameters_using_omnidirectional(self.calibrationDirectory)
-            self.K, self.D, self.DIM = getCameraParameters(self.calibrationDirectory)
+            calibrationDirectory = only_valid_images_for_calibration
+            self.K, self.D, self.DIM = getCameraParameters_using_omnidirectional(calibrationDirectory)
+            self.K, self.D, self.DIM = getCameraParameters(calibrationDirectory)
         else:
-            self.calibrationDirectory = 'dataset5/*.jpg'
-            self.calibrationDirectory = glob.glob(self.calibrationDirectory)
-            self.K, self.D, self.DIM = getCameraParameters_using_omnidirectional(self.calibrationDirectory)
-            self.K, self.D, self.DIM = getCameraParameters(self.calibrationDirectory)
+            calibrationDirectory = 'dataset5/*.jpg'
+            calibrationDirectory = glob.glob(calibrationDirectory)
+            self.K, self.D, self.DIM = getCameraParameters_using_omnidirectional(calibrationDirectory)
+            self.K, self.D, self.DIM = getCameraParameters(calibrationDirectory)
         
         
         # Test undistort methods
@@ -938,11 +939,12 @@ class Main():
             imgFront_topview = make_top_view(imgFront_unwarped0, shrinking_parameter=self.shrinking_parameter, crop_top=self.crop_top, crop_bottom=self.crop_bottom)
             imgRight_topview = make_top_view(imgRight_unwarped0, shrinking_parameter=self.shrinking_parameter, crop_top=self.crop_top, crop_bottom=self.crop_bottom)
             # img4 = numpy.concatenate((imgBack_topview, imgLeft_topview, imgFront_topview, imgRight_topview), axis=1)
-            # cv2.imshow("Unwarped by undistort in line", cv2.resize(img3, (0, 0), None, 0.5, 0.5))
-            # cv2.imshow("Top view", cv2.resize(img4, (0, 0), None, 0.5, 0.5))
-            # cv2.waitKey(0)
-            # cv2.destroyAllWindows()
-            # sys.exit()
+            # if SHOW_IMAGES is True:
+            #     cv2.imshow("Unwarped by undistort in line", cv2.resize(img3, (0, 0), None, 0.5, 0.5))
+            #     cv2.imshow("Top view", cv2.resize(img4, (0, 0), None, 0.5, 0.5))
+            #     cv2.waitKey(0)
+            #     cv2.destroyAllWindows()
+            #     sys.exit()
             
     
             if USE_PREDEFINED_COMBINE_TOP_VIEW_PARAMETERS is True:
@@ -993,16 +995,21 @@ class Main():
     
             
             combined_top_view = combine_top_views(imgBack_topview, imgLeft_topview, imgFront_topview, imgRight_topview, self.Back_position, self.Left_position, self.Front_position, self.Right_position)
-            #cv2.imshow("Top View image", combined_top_view)
+
             
             # crop image
             height_in_stiched = numpy.nonzero(combined_top_view[:,int(combined_top_view.shape[1]/2),:][:,1])[0]
             width_in_stiched = numpy.nonzero(combined_top_view[int(combined_top_view.shape[0]/2),:,:][:,1])[0]
             self.top_view_image = combined_top_view[min(height_in_stiched):max(height_in_stiched), min(width_in_stiched):max(width_in_stiched),:]
     
-            cv2.imshow("self.top_view_image", self.top_view_image)
-            cv2.waitKey(0)
-            # cv2.destroyWindow("self.top_view_image")
+            cv2.imwrite("prezentacja/imgBack_unwarped0.jpg", imgBack_unwarped0)
+            cv2.imwrite("prezentacja/imgBack_topview.jpg", imgBack_topview)
+            cv2.imwrite("prezentacja/top_view_image.jpg", self.top_view_image)
+            
+            if SHOW_IMAGES is True:
+                cv2.imshow("self.top_view_image", self.top_view_image)
+                cv2.waitKey(0)
+                # cv2.destroyWindow("self.top_view_image")
             
         if MAKE_EQUIRECTANGULAR_PROJECTION is True:
             
@@ -1017,10 +1024,12 @@ class Main():
             imgRight_unwarped = cv2.remap(imgRight, self.xmap, self.ymap, cv2.INTER_LINEAR)
         
             # img4 = numpy.concatenate((imgBack_unwarped, imgLeft_unwarped, imgFront_unwarped, imgRight_unwarped), axis=1)
-            # cv2.imshow("Unwarped in line", cv2.resize(img4, (0, 0), None, 0.5, 0.5))
-            # cv2.waitKey(0)
-            # cv2.destroyAllWindows()
-            # sys.exit()
+            
+            # if SHOW_IMAGES is True:
+            #     cv2.imshow("Top View image", combined_top_view)cv2.imshow("Unwarped in line", cv2.resize(img4, (0, 0), None, 0.5, 0.5))
+            #     cv2.waitKey(0)
+            #     cv2.destroyAllWindows()
+            #     sys.exit()
             
                     
             if USE_EQUIRECTANGULAR_METHOD is True:
@@ -1051,11 +1060,15 @@ class Main():
                     imgFront_unwarped[:,self.offsetLeftFront2:-self.offsetFrontRight1,:],
                     imgRight_unwarped[:,self.offsetFrontRight2:int(self.W_remap/2),:]
                     ), axis=1)
-                cv2.imshow("self.equirectangular_image", self.equirectangular_image)
                 
-                cv2.waitKey(0)
-                # cv2.destroyAllWindows()
-                # sys.exit()
+                if SHOW_IMAGES is True:
+                    cv2.imshow("self.equirectangular_image", self.equirectangular_image)
+                    cv2.imwrite("prezentacja/imgBack_unwarped.jpg", imgBack_unwarped)
+                    cv2.imwrite("prezentacja/imgBack.jpg", imgBack)
+                    cv2.imwrite("prezentacja/equirectangular_image.jpg", self.equirectangular_image)
+                    cv2.waitKey(0)
+                    # cv2.destroyAllWindows()
+                    # sys.exit()
             
             elif USE_ORB_IN_EQUIRECTANGULAR_METHOD is True:
             
@@ -1083,12 +1096,14 @@ class Main():
                 width_in_stiched = numpy.nonzero(stitched_BLRF[int(stitched_BLRF.shape[0]/2),:,:][:,1])[0]
                 croped_stiched_BLRF = stitched_BLRF[min(height_in_stiched):max(height_in_stiched), min(width_in_stiched):max(width_in_stiched),:]
                 self.equirectangular_image = croped_stiched_BLRF
-                # cv2.imshow("BLFR",stitched_BLFR)
-                cv2.imshow("BLRF",stitched_BLRF)
-                cv2.imshow("Croped BLRF",croped_stiched_BLRF)
-                cv2.waitKey(0)
-                # cv2.destroyAllWindows()
-                # sys.exit()
+                
+                if SHOW_IMAGES is True:
+                    # cv2.imshow("BLFR",stitched_BLFR)
+                    cv2.imshow("BLRF",stitched_BLRF)
+                    cv2.imshow("Croped BLRF",croped_stiched_BLRF)
+                    cv2.waitKey(0)
+                    # cv2.destroyAllWindows()
+                    # sys.exit()
     
             
                 # Co tu było właciwie zamierzone?
@@ -1101,14 +1116,16 @@ class Main():
                 
                 self.offsetBackLeftFrontRight1, self.offsetBackLeftFrontRight2 = find_parameters_for_two_image_stack(stacked_back_left_front,imgRight)
                 stacked_back_left_front_right = stack_two_images_with_offsets(stacked_back_left_front,imgRight,self.offsetBackLeftFrontRight1,self.offsetBackLeftFrontRight2)
-                cv2.imshow("stacked_back_left_front_right", stacked_back_left_front_right)    
-                cv2.waitKey(0)
-                #end find parameters
+                
+                if SHOW_IMAGES is True:
+                    cv2.imshow("stacked_back_left_front_right", stacked_back_left_front_right)    
+                    cv2.waitKey(0)
+                    #end find parameters
                 
             else:
                 raise SyntaxError("USE_EQUIRECTANGULAR_METHOD or USE_ORB_IN_EQUIRECTANGULAR_METHOD must be True")
        
-    def read_frames_continously(self):
+    def read_frames_continously(self, dont_stop = True):
         """
         Read frames continously
         """
@@ -1124,7 +1141,7 @@ class Main():
             else:
                 success = False
         
-            if cv2.waitKey(1) & 0xFF == ord('q') or success is False:
+            if cv2.waitKey(1) & 0xFF == ord('q') or success is False or dont_stop is False:
                 break
             else:
                 
@@ -1147,7 +1164,8 @@ class Main():
                     width_in_stiched = numpy.nonzero(combined_top_view[int(combined_top_view.shape[0]/2),:,:][:,1])[0]
                     self.top_view_image = combined_top_view[min(height_in_stiched):max(height_in_stiched), min(width_in_stiched):max(width_in_stiched),:]
                     
-                    cv2.imshow("self.top_view_image", self.top_view_image)
+                    if SHOW_IMAGES is True:
+                        cv2.imshow("self.top_view_image", self.top_view_image)
         
                 if MAKE_EQUIRECTANGULAR_PROJECTION is True:
                     if USE_EQUIRECTANGULAR_METHOD is True:
@@ -1166,7 +1184,9 @@ class Main():
                             imgFront_unwarped[:,self.offsetLeftFront2:-self.offsetFrontRight1,:],
                             imgRight_unwarped[:,self.offsetFrontRight2:int(self.W_remap/2),:]
                             ), axis=1)
-                        cv2.imshow("self.equirectangular_image", self.equirectangular_image)
+                        
+                        if SHOW_IMAGES is True:
+                            cv2.imshow("self.equirectangular_image", self.equirectangular_image)
     
             
                     elif USE_ORB_IN_EQUIRECTANGULAR_METHOD is True: # Właciwie nie wiem co tu miało być
@@ -1195,7 +1215,9 @@ class Main():
                                          cv2.resize(imgFrontGRAY, (0, 0), None, 0.5, 0.5), \
                                              cv2.resize(imgRightGRAY, (0, 0), None, 0.5, 0.5) \
                                      ))
-                        cv2.imshow("stacked", stacked)
+                        
+                        if SHOW_IMAGES is True:
+                            cv2.imshow("stacked", stacked)
                 
                     
                     else:
@@ -1215,7 +1237,16 @@ class Main():
             #make it visible for human eye
             time.sleep(0.2)
             
-
+    def run(self, dont_stop = True):
+        self.first_frame()
+        self.read_frames_continously(dont_stop = True)
+            
+    def get_top_view_image(self):
+        return self.top_view_image
+    
+    def get_equirectangular_image(self):
+        return self.equirectangular_image
+    
     def __del__(self):
         cv2.destroyAllWindows()
         self.capBack.release()
@@ -1243,6 +1274,8 @@ if __name__ == '__main__':
     USE_PREDEFINED_EQURECTANGULAR_PARAMETERS = True # False - ale ciagle sa wstepne
     USE_ORB_IN_EQUIRECTANGULAR_METHOD = not USE_EQUIRECTANGULAR_METHOD
     
+    SHOW_IMAGES = True
+    
     assert MAKE_TOP_VIEW is True or MAKE_EQUIRECTANGULAR_PROJECTION is True
     
     if ONLY_VALID_IMAGES_FOR_CAMERA_CALIBRATION is True:
@@ -1255,6 +1288,7 @@ if __name__ == '__main__':
         only_valid_images_for_calibration.append("dataset5/0067.jpg")
     
     m = Main()
+    m.run(dont_stop = True)
     del m
     # try:
     #     main()

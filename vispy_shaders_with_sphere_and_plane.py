@@ -214,8 +214,8 @@ class Canvas(app.Canvas):
         
         # self.program_sphere['texture'] = checkerboard()
         # self.program_sphere['texture'] = load_texture('1_earth_8k.jpg')
-        self.texture_sphere = gloo.Texture2D(load_texture('0260.jpg'), format='rgb')
-        self.texture_rectangle = gloo.Texture2D(load_texture('ground.jpg'), format='rgb')
+        self.texture_sphere = gloo.Texture2D(load_texture('equirectangular_image.jpg'), format='rgb')
+        self.texture_rectangle = gloo.Texture2D(load_texture('top_view_image.jpg'), format='rgb')
         self.program_sphere['texture'] = self.texture_sphere
         self.program_rectangle['texture'] = self.texture_rectangle
         
@@ -233,8 +233,10 @@ class Canvas(app.Canvas):
         self.program_sphere['u_model'] = self.model
         self.program_sphere['u_view'] = self.view
         self.program_rectangle['u_projection'] = self.projection
-        self.program_rectangle['u_model'] = numpy.matmul(rotate(90, (0, 0, 1)),
-                                                         translate((0, 0, 2)))
+        # self.program_rectangle['u_model'] = numpy.matmul(rotate(90, (0, 0, 1)),
+        #                                                  translate((0, 0, 1.1)))
+        self.program_rectangle['u_model'] = numpy.matmul(rotate(180, (0, 0, 1)),
+                                                          translate((0, 0, 1.1)))
         self.program_rectangle['u_view'] = self.view
         
         self.apply_zoom()
@@ -259,8 +261,8 @@ class Canvas(app.Canvas):
         self.draw_timer += event.dt
         if self.draw_timer > 0.04: # uptade 24 FPS
             self.draw_timer -= 0.04
-            self.texture_sphere.set_data(load_texture('0260.jpg'))
-            self.texture_rectangle.set_data(load_texture('ground.jpg'))
+            self.texture_sphere.set_data(load_texture('equirectangular_image.jpg'))
+            self.texture_rectangle.set_data(load_texture('top_view_image.jpg'))
             self.program_sphere['texture'] = self.texture_sphere
             self.program_rectangle['texture'] = self.texture_rectangle
             self.update()
@@ -326,7 +328,9 @@ class Canvas(app.Canvas):
 
     def on_draw(self, event):
         # gloo.clear(color=True, depth=True) # does it even work?
+        # self.context.glir.command('FUNC', 'glCullFace', 'front')
         self.program_sphere.draw('triangles', self.indices_sphere)
+        # self.context.glir.command('FUNC', 'glCullFace', 'front_and_back')
         self.program_rectangle.draw('triangles', self.indices_rectangle)
     
     
