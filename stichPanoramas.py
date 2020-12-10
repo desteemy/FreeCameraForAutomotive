@@ -844,10 +844,18 @@ def stitch_two_images_using_ORB(img1,img2, parameters = None): # there is also b
 class Main():
 
     def __init__(self):
+        self.K = None
+        self.D = None
+        self.DIM = None
+        
+        
         self.load_cameras()
         self.frame_counter = 0
-        self.calibrate_camera()
-
+        if MAKE_TOP_VIEW is True:
+            self.calibrate_top_view()
+        if MAKE_EQUIRECTANGULAR_PROJECTION is True:
+            self.calibrate_equirectangular_projection()
+            
         
     def load_cameras(self):
         self.capBack = cv2.VideoCapture("260-290mp4/Back_0260-0290.mp4")
@@ -860,7 +868,6 @@ class Main():
         """
         Calibrate camera
         """
-        
         if USE_PREDEFINED_CAMERA_PARAMETERS is True:
             self.K = numpy.array([[219.85077387813544, 0.0, 321.8468539428703], [0.0, 219.81115217715458, 321.26199300586325], [0.0, 0.0, 1.0]])
             self.D = numpy.array([[-0.02236163741176025], [-0.01566355538478192], [0.0066695817100666304], [-0.0009867103996664935]])
@@ -894,335 +901,213 @@ class Main():
         # cv2.destroyAllWindows()
         # sys.exit()
         
-    def first_frame(self):
+        
+    def calibrate_top_view(self):
         """
-        Read first frame and calibrate system
+        Calibrate top view
         """
+        if self.frame_counter == 0:
+            self.read_frame()
+        if self.K is None or self.D is None or self.DIM is None:
+            self.calibrate_camera()
 
-        #first read
-        successBack, imgBack = self.capBack.read()
-        successLeft, imgLeft = self.capLeft.read()
-        successFront, imgFront = self.capFront.read()
-        successRight, imgRight = self.capRight.read()
+
+        #unwrap images using fisheye calibration
+        imgBack_unwarped0 = undistort3(self.imgBack,self.K,self.D,self.DIM)
+        imgLeft_unwarped0 = undistort3(self.imgLeft,self.K,self.D,self.DIM)
+        imgFront_unwarped0 = undistort3(self.imgFront,self.K,self.D,self.DIM)
+        imgRight_unwarped0 = undistort3(self.imgRight,self.K,self.D,self.DIM)
+        # img3 = numpy.concatenate((imgBack_unwarped0, imgLeft_unwarped0, imgFront_unwarped0, imgRight_unwarped0), axis=1)
+
+        if USE_PREDEFINED_TOP_VIEW_PARAMETERS is True:
+            # 1 version
+            self.shrinking_parameter = 300
+            self.crop_top = 340
+            self.crop_bottom = 0
+            # 3 version
+            # shrinking_parameter = 290
+            # crop_top = 350
+            # crop_bottom = 0
+        else:
+            self.shrinking_parameter, self.crop_top, self.crop_bottom = find_parameters_to_make_top_view(imgBack_unwarped0)
+ 
+        imgBack_topview = make_top_view(imgBack_unwarped0, shrinking_parameter=self.shrinking_parameter, crop_top=self.crop_top, crop_bottom=self.crop_bottom)
+        imgLeft_topview = make_top_view(imgLeft_unwarped0, shrinking_parameter=self.shrinking_parameter, crop_top=self.crop_top, crop_bottom=self.crop_bottom)
+        imgFront_topview = make_top_view(imgFront_unwarped0, shrinking_parameter=self.shrinking_parameter, crop_top=self.crop_top, crop_bottom=self.crop_bottom)
+        imgRight_topview = make_top_view(imgRight_unwarped0, shrinking_parameter=self.shrinking_parameter, crop_top=self.crop_top, crop_bottom=self.crop_bottom)
+        # img4 = numpy.concatenate((imgBack_topview, imgLeft_topview, imgFront_topview, imgRight_topview), axis=1)
+        # if SHOW_IMAGES is True:
+        #     cv2.imshow("Unwarped by undistort in line", cv2.resize(img3, (0, 0), None, 0.5, 0.5))
+        #     cv2.imshow("Top view", cv2.resize(img4, (0, 0), None, 0.5, 0.5))
+        #     cv2.waitKey(0)
+        #     cv2.destroyAllWindows()
+        #     sys.exit()
+        
+
+        if USE_PREDEFINED_COMBINE_TOP_VIEW_PARAMETERS is True:
+            # 1 version
+            self.Back_position = [0, 8, 0, 0, 0, 0, 1.38, 0.56]
+            self.Left_position = [0, 0, 0, 0, 0, 0, 0.54, 1.56]
+            self.Front_position = [0, -8, 0, 0, 0, 0, 1.38, 0.56]
+            self.Right_position = [0, 0, 0, 0, 0, 0, 0.54, 1.56]
+        
+            # 2 version
+            # self.Back_position = [0, 0, 0, 0, 0, 0, 1.52, 0.62]
+            # self.Left_position = [0, -5, 0, 0, 0, 0, 0.6, 1.54]
+            # self.Front_position = [0, 0, 0, 0, 0, 0, 1.52, 0.62]
+            # self.Right_position = [0, -5, 0, 0, 0, 0, 0.6, 1.54]
+        else:
+            self.vertical_offset_for_parallel = 320
+            self.horizontal_offset_for_parallel = 160
+            self.vertical_offset_for_perpendicular = 150
+            self.horizontal_offset_for_perpendicular = 145
+            
+            self.vertical_scale_for_parallel = 75
+            self.horizontal_scale_for_parallel = 30
+            self.vertical_scale_for_perpendicular = 29
+            self.horizontal_scale_for_perpendicular = 76
+            # self.vertical_offset_for_parallel = 320
+            # self.horizontal_offset_for_parallel = 160
+            # self.vertical_offset_for_perpendicular = 148
+            # self.horizontal_offset_for_perpendicular = 145
+            
+            # self.vertical_scale_for_parallel = 76
+            # self.horizontal_scale_for_parallel = 35
+            # self.vertical_scale_for_perpendicular = 29
+            # self.horizontal_scale_for_perpendicular = 77
+            self.Back_position = [self.vertical_offset_for_parallel,  self.horizontal_offset_for_parallel,  0,  \
+                      0,  0,  0,     \
+                          self.vertical_scale_for_parallel, self.horizontal_scale_for_parallel]
+            self.Left_position = [-self.vertical_offset_for_perpendicular,  self.horizontal_offset_for_perpendicular,  0,  \
+                      0,  0,  0,     \
+                          self.vertical_scale_for_perpendicular, self.horizontal_scale_for_perpendicular]
+            self.Front_position = [self.vertical_offset_for_parallel,  -self.horizontal_offset_for_parallel,  0,  \
+                      0,  0,  0,     \
+                          self.vertical_scale_for_parallel, self.horizontal_scale_for_parallel]
+            self.Right_position = [self.vertical_offset_for_perpendicular,  self.horizontal_offset_for_perpendicular,  0,  \
+                      0,  0,  0,     \
+                          self.vertical_scale_for_perpendicular, self.horizontal_scale_for_perpendicular]
+    
+            self.Back_position, self.Left_position, self.Front_position, self.Right_position = find_parameters_for_combined_top_view(imgBack_topview, imgLeft_topview, imgFront_topview, imgRight_topview, self.Back_position, self.Left_position, self.Front_position, self.Right_position)
+
+        
+    def calibrate_equirectangular_projection(self):
+        """
+        Calibrate equirectangular
+        """
+        if self.frame_counter == 0:
+            self.read_frame()
+            
+            
+        # unwarp images using projection
+        self.W_remap = 720
+        self.H = 640
+        self.FOV = 180
+        self.xmap, self.ymap = buildmap(Ws=self.W_remap, Hs=self.H, Wd=640, Hd=640, fov=self.FOV)
+        imgBack_unwarped = cv2.remap(self.imgBack, self.xmap, self.ymap, cv2.INTER_LINEAR)
+        imgLeft_unwarped = cv2.remap(self.imgLeft, self.xmap, self.ymap, cv2.INTER_LINEAR)
+        imgFront_unwarped = cv2.remap(self.imgFront, self.xmap, self.ymap, cv2.INTER_LINEAR)
+        imgRight_unwarped = cv2.remap(self.imgRight, self.xmap, self.ymap, cv2.INTER_LINEAR)
+    
+        # img4 = numpy.concatenate((imgBack_unwarped, imgLeft_unwarped, imgFront_unwarped, imgRight_unwarped), axis=1)
+        
+        # if SHOW_IMAGES is True:
+        #     cv2.imshow("Top View image", combined_top_view)cv2.imshow("Unwarped in line", cv2.resize(img4, (0, 0), None, 0.5, 0.5))
+        #     cv2.waitKey(0)
+        #     cv2.destroyAllWindows()
+        #     sys.exit()
+        
+                
+        if USE_EQUIRECTANGULAR_METHOD is True:
+            # Use starting parameters for equirectangular
+            self.offsetBackLeft1 = 167
+            self.offsetBackLeft2 = 167
+            self.offsetLeftFront1 = 167
+            self.offsetLeftFront2 = 167
+            self.offsetFrontRight1 = 167
+            self.offsetFrontRight2 = 167
+            self.offsetRightBack1 = 167
+            self.offsetRightBack2 = 167
+            
+            if USE_PREDEFINED_EQURECTANGULAR_PARAMETERS is False:
+                # find parameters
+                self.offsetBackLeft1, self.offsetBackLeft2 = find_parameters_for_two_image_stack(imgBack_unwarped[:,int(self.W_remap/2):,:], imgLeft_unwarped[:,:int(self.W_remap/2),:], self.offsetBackLeft1, self.offsetBackLeft2)
+                self.offsetLeftFront1, self.offsetLeftFront2 = find_parameters_for_two_image_stack(imgLeft_unwarped[:,int(self.W_remap/2):,:], imgFront_unwarped[:,:int(self.W_remap/2),:], self.offsetLeftFront1, self.offsetLeftFront2)
+                self.offsetFrontRight1, self.offsetFrontRight2 = find_parameters_for_two_image_stack(imgFront_unwarped[:,int(self.W_remap/2):,:], imgRight_unwarped[:,:int(self.W_remap/2),:], self.offsetFrontRight1, self.offsetFrontRight2)
+                self.offsetRightBack1, self.offsetRightBack2 = find_parameters_for_two_image_stack(imgRight_unwarped[:,int(self.W_remap/2):,:], imgBack_unwarped[:,:int(self.W_remap/2),:], self.offsetRightBack1, self.offsetRightBack2)
+            
+            # concatenate images - stack_two_images_with_offsets - is only for two images, here will be 4, using it 3 times is stupid
+            #   then make stake 4 images? more code, but better readability
+            # WRITE SIMILAR USING ORB?
+            self.equirectangular_image = numpy.concatenate((
+                imgRight_unwarped[:,int(self.W_remap/2):-self.offsetRightBack1,:],
+                imgBack_unwarped[:,self.offsetRightBack2:-self.offsetBackLeft1,:],
+                imgLeft_unwarped[:,self.offsetBackLeft2:-self.offsetLeftFront1,:],
+                imgFront_unwarped[:,self.offsetLeftFront2:-self.offsetFrontRight1,:],
+                imgRight_unwarped[:,self.offsetFrontRight2:int(self.W_remap/2),:]
+                ), axis=1)
+        
+        elif USE_ORB_IN_EQUIRECTANGULAR_METHOD is True:
+        
+            #stitch unwarped images
+            # self.vertical_stitching_offset = 40
+            self.vertical_stitching_offset = 30
+            self.horizontal_stitching_offset = 80
+            # Zrobic to tak, ze funkcja dostaje mniejsze ROI do poszukiwania cech wspolnych, a pozniej przesunac punkty, bedzie szbysze i dokladniejsze
+            #opcja z doklejaniem
+            # stitched_BL, self.parameters_BL = stitch_two_images_using_ORB(imgBack_unwarped[self.horizontal_stitching_offset:H-self.horizontal_stitching_offset, self.vertical_stitching_offset:self.W_remap-self.vertical_stitching_offset, :],imgLeft_unwarped[self.horizontal_stitching_offset:self.H-self.horizontal_stitching_offset, self.vertical_stitching_offset:self.W_remap-self.vertical_stitching_offset, :])
+            # stitched_BLF, self.parameters_BLF = stitch_two_images_using_ORB(stitched_BL,imgFront_unwarped[self.horizontal_stitching_offset:self.H-self.horizontal_stitching_offset, self.vertical_stitching_offset:self.W_remap-self.vertical_stitching_offset, :])
+            # stitched_BLFR, self.parameters_BLFR = stitch_two_images_using_ORB(stitched_BLF,imgRight_unwarped[self.horizontal_stitching_offset:self.H-self.horizontal_stitching_offset, self.vertical_stitching_offset:self.W_remap-self.vertical_stitching_offset, :])
+            # print("BLFR\n")
+            # print(stitched_BLFR.shape)
+            #opcja rownolegla
+            stitched_BL, self.parameters_BL = stitch_two_images_using_ORB(imgBack_unwarped[self.horizontal_stitching_offset:self.H-self.horizontal_stitching_offset, self.vertical_stitching_offset:self.W_remap-self.vertical_stitching_offset, :],imgLeft_unwarped[self.horizontal_stitching_offset:self.H-self.horizontal_stitching_offset, self.vertical_stitching_offset:self.W_remap-self.vertical_stitching_offset, :])
+            stitched_FR, self.parameters_FR = stitch_two_images_using_ORB(imgRight_unwarped[self.horizontal_stitching_offset:self.H-self.horizontal_stitching_offset, self.vertical_stitching_offset:self.W_remap-self.vertical_stitching_offset, :],imgFront_unwarped[self.horizontal_stitching_offset:self.H-self.horizontal_stitching_offset, self.vertical_stitching_offset:self.W_remap-self.vertical_stitching_offset, :])
+            stitched_BLRF, self.parameters_BLRF = stitch_two_images_using_ORB(stitched_BL,stitched_FR)
+            # print("BLRF\n")
+            # print(stitched_BLRF.shape)
+            
+            # crop image - czy to ma sens? - raczej nie, zobaczymy jak to będzie dzialac dalej, teraz gupie
+            # moze wypadaloby zrobic projekcje z "equrectangular"/"obround" do "rectangular" przedtym
+            height_in_stiched = numpy.nonzero(stitched_BLRF[:,int(stitched_BLRF.shape[1]/7),:][:,1])[0]
+            width_in_stiched = numpy.nonzero(stitched_BLRF[int(stitched_BLRF.shape[0]/2),:,:][:,1])[0]
+            croped_stiched_BLRF = stitched_BLRF[min(height_in_stiched):max(height_in_stiched), min(width_in_stiched):max(width_in_stiched),:]
+            self.equirectangular_image = croped_stiched_BLRF
+        
+            # Co tu było właciwie zamierzone?
+            #find parameters
+            self.offsetBackLeft1, self.offsetBackLeft2 = find_parameters_for_two_image_stack(self.imgBack,self.imgLeft)
+            stacked_back_left = stack_two_images_with_offsets(self.imgBack,self.imgLeft,self.offsetBackLeft1,self.offsetBackLeft2)
+            
+            self.offsetBackLeftFront1, self.offsetBackLeftFront2 = find_parameters_for_two_image_stack(stacked_back_left,self.imgFront)
+            stacked_back_left_front = stack_two_images_with_offsets(stacked_back_left,self.imgFront,self.offsetBackLeftFront1,self.offsetBackLeftFront2)
+            
+            self.offsetBackLeftFrontRight1, self.offsetBackLeftFrontRight2 = find_parameters_for_two_image_stack(stacked_back_left_front,self.imgRight)
+            stacked_back_left_front_right = stack_two_images_with_offsets(stacked_back_left_front,self.imgRight,self.offsetBackLeftFrontRight1,self.offsetBackLeftFrontRight2)
+            
+            # if SHOW_IMAGES is True:
+            #     cv2.imshow("stacked_back_left_front_right", stacked_back_left_front_right)    
+            #     cv2.waitKey(0)
+            #     #end find parameters
+            
+        else:
+            raise SyntaxError("USE_EQUIRECTANGULAR_METHOD or USE_ORB_IN_EQUIRECTANGULAR_METHOD must be True")
+        
+        
+    def read_frame(self):
+        successBack, self.imgBack = self.capBack.read()
+        successLeft, self.imgLeft = self.capLeft.read()
+        successFront, self.imgFront = self.capFront.read()
+        successRight, self.imgRight = self.capRight.read()
         
         if successBack is True and successLeft is True and successFront is True and successRight is True:
-            success = True
+            self.frame_read_successfully = True
             self.frame_counter += 1
         else:
             # DO ZMIANY
-            success = False
-            cv2.destroyAllWindows()
-            return
-        
-        if MAKE_TOP_VIEW is True:
-            #unwrap images using fisheye calibration
-            imgBack_unwarped0 = undistort3(imgBack,self.K,self.D,self.DIM)
-            imgLeft_unwarped0 = undistort3(imgLeft,self.K,self.D,self.DIM)
-            imgFront_unwarped0 = undistort3(imgFront,self.K,self.D,self.DIM)
-            imgRight_unwarped0 = undistort3(imgRight,self.K,self.D,self.DIM)
-            # img3 = numpy.concatenate((imgBack_unwarped0, imgLeft_unwarped0, imgFront_unwarped0, imgRight_unwarped0), axis=1)
-        
-            if USE_PREDEFINED_TOP_VIEW_PARAMETERS is True:
-                # 1 version
-                self.shrinking_parameter = 300
-                self.crop_top = 340
-                self.crop_bottom = 0
-                # 3 version
-                # shrinking_parameter = 290
-                # crop_top = 350
-                # crop_bottom = 0
-            else:
-                self.shrinking_parameter, self.crop_top, self.crop_bottom = find_parameters_to_make_top_view(imgBack_unwarped0)
-                
-            imgBack_topview = make_top_view(imgBack_unwarped0, shrinking_parameter=self.shrinking_parameter, crop_top=self.crop_top, crop_bottom=self.crop_bottom)
-            imgLeft_topview = make_top_view(imgLeft_unwarped0, shrinking_parameter=self.shrinking_parameter, crop_top=self.crop_top, crop_bottom=self.crop_bottom)
-            imgFront_topview = make_top_view(imgFront_unwarped0, shrinking_parameter=self.shrinking_parameter, crop_top=self.crop_top, crop_bottom=self.crop_bottom)
-            imgRight_topview = make_top_view(imgRight_unwarped0, shrinking_parameter=self.shrinking_parameter, crop_top=self.crop_top, crop_bottom=self.crop_bottom)
-            # img4 = numpy.concatenate((imgBack_topview, imgLeft_topview, imgFront_topview, imgRight_topview), axis=1)
-            # if SHOW_IMAGES is True:
-            #     cv2.imshow("Unwarped by undistort in line", cv2.resize(img3, (0, 0), None, 0.5, 0.5))
-            #     cv2.imshow("Top view", cv2.resize(img4, (0, 0), None, 0.5, 0.5))
-            #     cv2.waitKey(0)
-            #     cv2.destroyAllWindows()
-            #     sys.exit()
+            self.frame_read_successfully = False
             
-    
-            if USE_PREDEFINED_COMBINE_TOP_VIEW_PARAMETERS is True:
-                # 1 version
-                self.Back_position = [0, 8, 0, 0, 0, 0, 1.38, 0.56]
-                self.Left_position = [0, 0, 0, 0, 0, 0, 0.54, 1.56]
-                self.Front_position = [0, -8, 0, 0, 0, 0, 1.38, 0.56]
-                self.Right_position = [0, 0, 0, 0, 0, 0, 0.54, 1.56]
-            
-                # 2 version
-                # self.Back_position = [0, 0, 0, 0, 0, 0, 1.52, 0.62]
-                # self.Left_position = [0, -5, 0, 0, 0, 0, 0.6, 1.54]
-                # self.Front_position = [0, 0, 0, 0, 0, 0, 1.52, 0.62]
-                # self.Right_position = [0, -5, 0, 0, 0, 0, 0.6, 1.54]
-            else:
-                self.vertical_offset_for_parallel = 320
-                self.horizontal_offset_for_parallel = 160
-                self.vertical_offset_for_perpendicular = 150
-                self.horizontal_offset_for_perpendicular = 145
-                
-                self.vertical_scale_for_parallel = 75
-                self.horizontal_scale_for_parallel = 30
-                self.vertical_scale_for_perpendicular = 29
-                self.horizontal_scale_for_perpendicular = 76
-                # self.vertical_offset_for_parallel = 320
-                # self.horizontal_offset_for_parallel = 160
-                # self.vertical_offset_for_perpendicular = 148
-                # self.horizontal_offset_for_perpendicular = 145
-                
-                # self.vertical_scale_for_parallel = 76
-                # self.horizontal_scale_for_parallel = 35
-                # self.vertical_scale_for_perpendicular = 29
-                # self.horizontal_scale_for_perpendicular = 77
-                self.Back_position = [self.vertical_offset_for_parallel,  self.horizontal_offset_for_parallel,  0,  \
-                          0,  0,  0,     \
-                              self.vertical_scale_for_parallel, self.horizontal_scale_for_parallel]
-                self.Left_position = [-self.vertical_offset_for_perpendicular,  self.horizontal_offset_for_perpendicular,  0,  \
-                          0,  0,  0,     \
-                              self.vertical_scale_for_perpendicular, self.horizontal_scale_for_perpendicular]
-                self.Front_position = [self.vertical_offset_for_parallel,  -self.horizontal_offset_for_parallel,  0,  \
-                          0,  0,  0,     \
-                              self.vertical_scale_for_parallel, self.horizontal_scale_for_parallel]
-                self.Right_position = [self.vertical_offset_for_perpendicular,  self.horizontal_offset_for_perpendicular,  0,  \
-                          0,  0,  0,     \
-                              self.vertical_scale_for_perpendicular, self.horizontal_scale_for_perpendicular]
-        
-                self.Back_position, self.Left_position, self.Front_position, self.Right_position = find_parameters_for_combined_top_view(imgBack_topview, imgLeft_topview, imgFront_topview, imgRight_topview, self.Back_position, self.Left_position, self.Front_position, self.Right_position)
-    
-            
-            combined_top_view = combine_top_views(imgBack_topview, imgLeft_topview, imgFront_topview, imgRight_topview, self.Back_position, self.Left_position, self.Front_position, self.Right_position)
-
-            
-            # crop image
-            height_in_stiched = numpy.nonzero(combined_top_view[:,int(combined_top_view.shape[1]/2),:][:,1])[0]
-            width_in_stiched = numpy.nonzero(combined_top_view[int(combined_top_view.shape[0]/2),:,:][:,1])[0]
-            self.top_view_image = combined_top_view[min(height_in_stiched):max(height_in_stiched), min(width_in_stiched):max(width_in_stiched),:]
-    
-            cv2.imwrite("prezentacja/imgBack_unwarped0.jpg", imgBack_unwarped0)
-            cv2.imwrite("prezentacja/imgBack_topview.jpg", imgBack_topview)
-            cv2.imwrite("prezentacja/top_view_image.jpg", self.top_view_image)
-            
-            if SHOW_IMAGES is True:
-                cv2.imshow("self.top_view_image", self.top_view_image)
-                cv2.waitKey(0)
-                # cv2.destroyWindow("self.top_view_image")
-            
-        if MAKE_EQUIRECTANGULAR_PROJECTION is True:
-            
-            # unwarp images using projection
-            self.W_remap = 720
-            self.H = 640
-            self.FOV = 180
-            self.xmap, self.ymap = buildmap(Ws=self.W_remap, Hs=self.H, Wd=640, Hd=640, fov=self.FOV)
-            imgBack_unwarped = cv2.remap(imgBack, self.xmap, self.ymap, cv2.INTER_LINEAR)
-            imgLeft_unwarped = cv2.remap(imgLeft, self.xmap, self.ymap, cv2.INTER_LINEAR)
-            imgFront_unwarped = cv2.remap(imgFront, self.xmap, self.ymap, cv2.INTER_LINEAR)
-            imgRight_unwarped = cv2.remap(imgRight, self.xmap, self.ymap, cv2.INTER_LINEAR)
-        
-            # img4 = numpy.concatenate((imgBack_unwarped, imgLeft_unwarped, imgFront_unwarped, imgRight_unwarped), axis=1)
-            
-            # if SHOW_IMAGES is True:
-            #     cv2.imshow("Top View image", combined_top_view)cv2.imshow("Unwarped in line", cv2.resize(img4, (0, 0), None, 0.5, 0.5))
-            #     cv2.waitKey(0)
-            #     cv2.destroyAllWindows()
-            #     sys.exit()
-            
-                    
-            if USE_EQUIRECTANGULAR_METHOD is True:
-                # Use starting parameters for equirectangular
-                self.offsetBackLeft1 = 167
-                self.offsetBackLeft2 = 167
-                self.offsetLeftFront1 = 167
-                self.offsetLeftFront2 = 167
-                self.offsetFrontRight1 = 167
-                self.offsetFrontRight2 = 167
-                self.offsetRightBack1 = 167
-                self.offsetRightBack2 = 167
-                
-                if USE_PREDEFINED_EQURECTANGULAR_PARAMETERS is False:
-                    # find parameters
-                    self.offsetBackLeft1, self.offsetBackLeft2 = find_parameters_for_two_image_stack(imgBack_unwarped[:,int(self.W_remap/2):,:], imgLeft_unwarped[:,:int(self.W_remap/2),:], self.offsetBackLeft1, self.offsetBackLeft2)
-                    self.offsetLeftFront1, self.offsetLeftFront2 = find_parameters_for_two_image_stack(imgLeft_unwarped[:,int(self.W_remap/2):,:], imgFront_unwarped[:,:int(self.W_remap/2),:], self.offsetLeftFront1, self.offsetLeftFront2)
-                    self.offsetFrontRight1, self.offsetFrontRight2 = find_parameters_for_two_image_stack(imgFront_unwarped[:,int(self.W_remap/2):,:], imgRight_unwarped[:,:int(self.W_remap/2),:], self.offsetFrontRight1, self.offsetFrontRight2)
-                    self.offsetRightBack1, self.offsetRightBack2 = find_parameters_for_two_image_stack(imgRight_unwarped[:,int(self.W_remap/2):,:], imgBack_unwarped[:,:int(self.W_remap/2),:], self.offsetRightBack1, self.offsetRightBack2)
-                
-                # concatenate images - stack_two_images_with_offsets - is only for two images, here will be 4, using it 3 times is stupid
-                #   then make stake 4 images? more code, but better readability
-                # WRITE SIMILAR USING ORB?
-                self.equirectangular_image = numpy.concatenate((
-                    imgRight_unwarped[:,int(self.W_remap/2):-self.offsetRightBack1,:],
-                    imgBack_unwarped[:,self.offsetRightBack2:-self.offsetBackLeft1,:],
-                    imgLeft_unwarped[:,self.offsetBackLeft2:-self.offsetLeftFront1,:],
-                    imgFront_unwarped[:,self.offsetLeftFront2:-self.offsetFrontRight1,:],
-                    imgRight_unwarped[:,self.offsetFrontRight2:int(self.W_remap/2),:]
-                    ), axis=1)
-                
-                if SHOW_IMAGES is True:
-                    cv2.imshow("self.equirectangular_image", self.equirectangular_image)
-                    cv2.imwrite("prezentacja/imgBack_unwarped.jpg", imgBack_unwarped)
-                    cv2.imwrite("prezentacja/imgBack.jpg", imgBack)
-                    cv2.imwrite("prezentacja/equirectangular_image.jpg", self.equirectangular_image)
-                    cv2.waitKey(0)
-                    # cv2.destroyAllWindows()
-                    # sys.exit()
-            
-            elif USE_ORB_IN_EQUIRECTANGULAR_METHOD is True:
-            
-                #stitch unwarped images
-                # self.vertical_stitching_offset = 40
-                self.vertical_stitching_offset = 30
-                self.horizontal_stitching_offset = 80
-                # Zrobic to tak, ze funkcja dostaje mniejsze ROI do poszukiwania cech wspolnych, a pozniej przesunac punkty, bedzie szbysze i dokladniejsze
-                #opcja z doklejaniem
-                # stitched_BL, self.parameters_BL = stitch_two_images_using_ORB(imgBack_unwarped[self.horizontal_stitching_offset:H-self.horizontal_stitching_offset, self.vertical_stitching_offset:self.W_remap-self.vertical_stitching_offset, :],imgLeft_unwarped[self.horizontal_stitching_offset:self.H-self.horizontal_stitching_offset, self.vertical_stitching_offset:self.W_remap-self.vertical_stitching_offset, :])
-                # stitched_BLF, self.parameters_BLF = stitch_two_images_using_ORB(stitched_BL,imgFront_unwarped[self.horizontal_stitching_offset:self.H-self.horizontal_stitching_offset, self.vertical_stitching_offset:self.W_remap-self.vertical_stitching_offset, :])
-                # stitched_BLFR, self.parameters_BLFR = stitch_two_images_using_ORB(stitched_BLF,imgRight_unwarped[self.horizontal_stitching_offset:self.H-self.horizontal_stitching_offset, self.vertical_stitching_offset:self.W_remap-self.vertical_stitching_offset, :])
-                # print("BLFR\n")
-                # print(stitched_BLFR.shape)
-                #opcja rownolegla
-                stitched_BL, self.parameters_BL = stitch_two_images_using_ORB(imgBack_unwarped[self.horizontal_stitching_offset:self.H-self.horizontal_stitching_offset, self.vertical_stitching_offset:self.W_remap-self.vertical_stitching_offset, :],imgLeft_unwarped[self.horizontal_stitching_offset:self.H-self.horizontal_stitching_offset, self.vertical_stitching_offset:self.W_remap-self.vertical_stitching_offset, :])
-                stitched_FR, self.parameters_FR = stitch_two_images_using_ORB(imgRight_unwarped[self.horizontal_stitching_offset:self.H-self.horizontal_stitching_offset, self.vertical_stitching_offset:self.W_remap-self.vertical_stitching_offset, :],imgFront_unwarped[self.horizontal_stitching_offset:self.H-self.horizontal_stitching_offset, self.vertical_stitching_offset:self.W_remap-self.vertical_stitching_offset, :])
-                stitched_BLRF, self.parameters_BLRF = stitch_two_images_using_ORB(stitched_BL,stitched_FR)
-                # print("BLRF\n")
-                # print(stitched_BLRF.shape)
-                
-                # crop image - czy to ma sens? - raczej nie, zobaczymy jak to będzie dzialac dalej, teraz gupie
-                # moze wypadaloby zrobic projekcje z "equrectangular"/"obround" do "rectangular" przedtym
-                height_in_stiched = numpy.nonzero(stitched_BLRF[:,int(stitched_BLRF.shape[1]/7),:][:,1])[0]
-                width_in_stiched = numpy.nonzero(stitched_BLRF[int(stitched_BLRF.shape[0]/2),:,:][:,1])[0]
-                croped_stiched_BLRF = stitched_BLRF[min(height_in_stiched):max(height_in_stiched), min(width_in_stiched):max(width_in_stiched),:]
-                self.equirectangular_image = croped_stiched_BLRF
-                
-                if SHOW_IMAGES is True:
-                    # cv2.imshow("BLFR",stitched_BLFR)
-                    cv2.imshow("BLRF",stitched_BLRF)
-                    cv2.imshow("Croped BLRF",croped_stiched_BLRF)
-                    cv2.waitKey(0)
-                    # cv2.destroyAllWindows()
-                    # sys.exit()
-    
-            
-                # Co tu było właciwie zamierzone?
-                #find parameters
-                self.offsetBackLeft1, self.offsetBackLeft2 = find_parameters_for_two_image_stack(imgBack,imgLeft)
-                stacked_back_left = stack_two_images_with_offsets(imgBack,imgLeft,self.offsetBackLeft1,self.offsetBackLeft2)
-                
-                self.offsetBackLeftFront1, self.offsetBackLeftFront2 = find_parameters_for_two_image_stack(stacked_back_left,imgFront)
-                stacked_back_left_front = stack_two_images_with_offsets(stacked_back_left,imgFront,self.offsetBackLeftFront1,self.offsetBackLeftFront2)
-                
-                self.offsetBackLeftFrontRight1, self.offsetBackLeftFrontRight2 = find_parameters_for_two_image_stack(stacked_back_left_front,imgRight)
-                stacked_back_left_front_right = stack_two_images_with_offsets(stacked_back_left_front,imgRight,self.offsetBackLeftFrontRight1,self.offsetBackLeftFrontRight2)
-                
-                if SHOW_IMAGES is True:
-                    cv2.imshow("stacked_back_left_front_right", stacked_back_left_front_right)    
-                    cv2.waitKey(0)
-                    #end find parameters
-                
-            else:
-                raise SyntaxError("USE_EQUIRECTANGULAR_METHOD or USE_ORB_IN_EQUIRECTANGULAR_METHOD must be True")
-       
-    def read_frames_continously(self, dont_stop = True):
-        """
-        Read frames continously
-        """
-        while True:
-            successBack, imgBack = self.capBack.read()
-            successLeft, imgLeft = self.capLeft.read()
-            successFront, imgFront = self.capFront.read()
-            successRight, imgRight = self.capRight.read()
-            
-            if successBack is True and successLeft is True and successFront is True and successRight is True:
-                success = True
-                self.frame_counter += 1
-            else:
-                success = False
-        
-            if cv2.waitKey(1) & 0xFF == ord('q') or success is False or dont_stop is False:
-                break
-            else:
-                
-                if MAKE_TOP_VIEW is True:
-                    
-                    #unwrap images using fisheye calibration
-                    imgBack_unwarped0 = undistort3(imgBack,self.K,self.D,self.DIM)
-                    imgLeft_unwarped0 = undistort3(imgLeft,self.K,self.D,self.DIM)
-                    imgFront_unwarped0 = undistort3(imgFront,self.K,self.D,self.DIM)
-                    imgRight_unwarped0 = undistort3(imgRight,self.K,self.D,self.DIM)
-                    #make topview
-                    imgBack_topview = make_top_view(imgBack_unwarped0, shrinking_parameter=self.shrinking_parameter, crop_top=self.crop_top, crop_bottom=self.crop_bottom)
-                    imgLeft_topview = make_top_view(imgLeft_unwarped0, shrinking_parameter=self.shrinking_parameter, crop_top=self.crop_top, crop_bottom=self.crop_bottom)
-                    imgFront_topview = make_top_view(imgFront_unwarped0, shrinking_parameter=self.shrinking_parameter, crop_top=self.crop_top, crop_bottom=self.crop_bottom)
-                    imgRight_topview = make_top_view(imgRight_unwarped0, shrinking_parameter=self.shrinking_parameter, crop_top=self.crop_top, crop_bottom=self.crop_bottom)
-                    combined_top_view = combine_top_views(imgBack_topview, imgLeft_topview, imgFront_topview, imgRight_topview, self.Back_position, self.Left_position, self.Front_position, self.Right_position)
-                                    
-                    # crop image
-                    height_in_stiched = numpy.nonzero(combined_top_view[:,int(combined_top_view.shape[1]/2),:][:,1])[0]
-                    width_in_stiched = numpy.nonzero(combined_top_view[int(combined_top_view.shape[0]/2),:,:][:,1])[0]
-                    self.top_view_image = combined_top_view[min(height_in_stiched):max(height_in_stiched), min(width_in_stiched):max(width_in_stiched),:]
-                    
-                    if SHOW_IMAGES is True:
-                        cv2.imshow("self.top_view_image", self.top_view_image)
-        
-                if MAKE_EQUIRECTANGULAR_PROJECTION is True:
-                    if USE_EQUIRECTANGULAR_METHOD is True:
-                        imgBack_unwarped = cv2.remap(imgBack, self.xmap, self.ymap, cv2.INTER_LINEAR)
-                        imgLeft_unwarped = cv2.remap(imgLeft, self.xmap, self.ymap, cv2.INTER_LINEAR)
-                        imgFront_unwarped = cv2.remap(imgFront, self.xmap, self.ymap, cv2.INTER_LINEAR)
-                        imgRight_unwarped = cv2.remap(imgRight, self.xmap, self.ymap, cv2.INTER_LINEAR)
-            
-                        # concatenate images - stack_two_images_with_offsets - is only for two images, here will be 4, using it 3 times is stupid
-                        #   then make stake 4 images? more code, but better readability
-                        # WRITE SIMILAR USING ORB?
-                        self.equirectangular_image = numpy.concatenate((
-                            imgRight_unwarped[:,int(self.W_remap/2):-self.offsetRightBack1,:],
-                            imgBack_unwarped[:,self.offsetRightBack2:-self.offsetBackLeft1,:],
-                            imgLeft_unwarped[:,self.offsetBackLeft2:-self.offsetLeftFront1,:],
-                            imgFront_unwarped[:,self.offsetLeftFront2:-self.offsetFrontRight1,:],
-                            imgRight_unwarped[:,self.offsetFrontRight2:int(self.W_remap/2),:]
-                            ), axis=1)
-                        
-                        if SHOW_IMAGES is True:
-                            cv2.imshow("self.equirectangular_image", self.equirectangular_image)
-    
-            
-                    elif USE_ORB_IN_EQUIRECTANGULAR_METHOD is True: # Właciwie nie wiem co tu miało być
-                        #stiching and equirectangular github
-                        # undistortedBack = undistort(imgBack,K,D,DIM)
-                        imgBackGRAY = cv2.cvtColor(imgBack,cv2.COLOR_BGR2GRAY)
-                        
-                        # undistortedLeft = undistort(imgLeft,K,D,DIM)
-                        imgLeftGRAY = cv2.cvtColor(imgLeft,cv2.COLOR_BGR2GRAY)
-                        
-                        # undistortedFront = undistort(imgFront,K,D,DIM)
-                        imgFrontGRAY = cv2.cvtColor(imgFront,cv2.COLOR_BGR2GRAY)
-                        
-                        # undistortedRight = undistort(imgRight,K,D,DIM)
-                        imgRightGRAY = cv2.cvtColor(imgRight,cv2.COLOR_BGR2GRAY)
-                        
-                        
-                        stacked_back_left = stack_two_images_with_offsets(imgBack,imgLeft,self.offsetBackLeft1,self.offsetBackLeft2)
-                        stacked_back_left_front = stack_two_images_with_offsets(stacked_back_left,imgFront,self.offsetBackLeftFront1,self.offsetBackLeftFront2)
-                        stacked_back_left_front_right = stack_two_images_with_offsets(stacked_back_left_front,imgRight,self.offsetBackLeftFrontRight1,self.offsetBackLeftFrontRight2)
-                        cv2.imshow("stacked_back_left_front_right", stacked_back_left_front_right)
-                        
-                        self.equirectangular_image = stacked_back_left_front_right
-                        stacked = numpy.hstack((cv2.resize(imgBackGRAY, (0, 0), None, 0.5, 0.5), \
-                                     cv2.resize(imgLeftGRAY, (0, 0), None, 0.5, 0.5), \
-                                         cv2.resize(imgFrontGRAY, (0, 0), None, 0.5, 0.5), \
-                                             cv2.resize(imgRightGRAY, (0, 0), None, 0.5, 0.5) \
-                                     ))
-                        
-                        if SHOW_IMAGES is True:
-                            cv2.imshow("stacked", stacked)
-                
-                    
-                    else:
-                        raise SyntaxError("USE_EQUIRECTANGULAR_METHOD or USE_ORB_IN_EQUIRECTANGULAR_METHOD must be True")
-            
+        if CAMERA_READ_FROM_FILE is True:
             #loop video
             if self.frame_counter == self.capBack.get(cv2.CAP_PROP_FRAME_COUNT) or \
                 self.frame_counter == self.capLeft.get(cv2.CAP_PROP_FRAME_COUNT) or \
@@ -1234,18 +1119,114 @@ class Main():
                 self.capFront.set(cv2.CAP_PROP_POS_FRAMES, 0)
                 self.capRight.set(cv2.CAP_PROP_POS_FRAMES, 0)
             
-            #make it visible for human eye
-            time.sleep(0.2)
+            # #make it visible for human eye
+            # time.sleep(0.2)
+        
+    def top_view(self):
+        #unwrap images using fisheye calibration
+        imgBack_unwarped0 = undistort3(self.imgBack,self.K,self.D,self.DIM)
+        imgLeft_unwarped0 = undistort3(self.imgLeft,self.K,self.D,self.DIM)
+        imgFront_unwarped0 = undistort3(self.imgFront,self.K,self.D,self.DIM)
+        imgRight_unwarped0 = undistort3(self.imgRight,self.K,self.D,self.DIM)
+        # img3 = numpy.concatenate((imgBack_unwarped0, imgLeft_unwarped0, imgFront_unwarped0, imgRight_unwarped0), axis=1)
+   
+        imgBack_topview = make_top_view(imgBack_unwarped0, shrinking_parameter=self.shrinking_parameter, crop_top=self.crop_top, crop_bottom=self.crop_bottom)
+        imgLeft_topview = make_top_view(imgLeft_unwarped0, shrinking_parameter=self.shrinking_parameter, crop_top=self.crop_top, crop_bottom=self.crop_bottom)
+        imgFront_topview = make_top_view(imgFront_unwarped0, shrinking_parameter=self.shrinking_parameter, crop_top=self.crop_top, crop_bottom=self.crop_bottom)
+        imgRight_topview = make_top_view(imgRight_unwarped0, shrinking_parameter=self.shrinking_parameter, crop_top=self.crop_top, crop_bottom=self.crop_bottom)
+
+        combined_top_view = combine_top_views(imgBack_topview, imgLeft_topview, imgFront_topview, imgRight_topview, self.Back_position, self.Left_position, self.Front_position, self.Right_position)
+
+        # crop image
+        # DO ZMIANY ? zamiast liczyć kształt to zrobić static variable jakiegos self.costam
+        height_in_stiched = numpy.nonzero(combined_top_view[:,int(combined_top_view.shape[1]/2),:][:,1])[0]
+        width_in_stiched = numpy.nonzero(combined_top_view[int(combined_top_view.shape[0]/2),:,:][:,1])[0]
+        self.top_view_image = combined_top_view[min(height_in_stiched):max(height_in_stiched), min(width_in_stiched):max(width_in_stiched),:]
+
+        # cv2.imwrite("prezentacja/imgBack_unwarped0.jpg", imgBack_unwarped0)
+        # cv2.imwrite("prezentacja/imgBack_topview.jpg", imgBack_topview)
+        # cv2.imwrite("prezentacja/top_view_image.jpg", self.top_view_image)
+        
+        # if SHOW_IMAGES is True:
+        #     cv2.imshow("self.top_view_image", self.top_view_image)
+        #     cv2.waitKey(0)
+        #     cv2.destroyWindow("self.top_view_image")
+ 
+    def equirectangular_projection(self):
+        imgBack_unwarped = cv2.remap(self.imgBack, self.xmap, self.ymap, cv2.INTER_LINEAR)
+        imgLeft_unwarped = cv2.remap(self.imgLeft, self.xmap, self.ymap, cv2.INTER_LINEAR)
+        imgFront_unwarped = cv2.remap(self.imgFront, self.xmap, self.ymap, cv2.INTER_LINEAR)
+        imgRight_unwarped = cv2.remap(self.imgRight, self.xmap, self.ymap, cv2.INTER_LINEAR)
+        
+        if USE_EQUIRECTANGULAR_METHOD is True:
+            self.equirectangular_image = numpy.concatenate((
+                imgRight_unwarped[:,int(self.W_remap/2):-self.offsetRightBack1,:],
+                imgBack_unwarped[:,self.offsetRightBack2:-self.offsetBackLeft1,:],
+                imgLeft_unwarped[:,self.offsetBackLeft2:-self.offsetLeftFront1,:],
+                imgFront_unwarped[:,self.offsetLeftFront2:-self.offsetFrontRight1,:],
+                imgRight_unwarped[:,self.offsetFrontRight2:int(self.W_remap/2),:]
+                ), axis=1)
+            
+        elif USE_ORB_IN_EQUIRECTANGULAR_METHOD is True: # o co tu właciwie chodziło
+            # DO ZMIANY
+            # Zrobic to tak, ze funkcja dostaje mniejsze ROI do poszukiwania cech wspolnych, a pozniej przesunac punkty, bedzie szbysze i dokladniejsze
+            #opcja z doklejaniem
+            # stitched_BL, self.parameters_BL = stitch_two_images_using_ORB(imgBack_unwarped[self.horizontal_stitching_offset:H-self.horizontal_stitching_offset, self.vertical_stitching_offset:self.W_remap-self.vertical_stitching_offset, :],imgLeft_unwarped[self.horizontal_stitching_offset:self.H-self.horizontal_stitching_offset, self.vertical_stitching_offset:self.W_remap-self.vertical_stitching_offset, :])
+            # stitched_BLF, self.parameters_BLF = stitch_two_images_using_ORB(stitched_BL,imgFront_unwarped[self.horizontal_stitching_offset:self.H-self.horizontal_stitching_offset, self.vertical_stitching_offset:self.W_remap-self.vertical_stitching_offset, :])
+            # stitched_BLFR, self.parameters_BLFR = stitch_two_images_using_ORB(stitched_BLF,imgRight_unwarped[self.horizontal_stitching_offset:self.H-self.horizontal_stitching_offset, self.vertical_stitching_offset:self.W_remap-self.vertical_stitching_offset, :])
+            # print("BLFR\n")
+            # print(stitched_BLFR.shape)
+            #opcja rownolegla
+            stitched_BL, self.parameters_BL = stitch_two_images_using_ORB(imgBack_unwarped[self.horizontal_stitching_offset:self.H-self.horizontal_stitching_offset, self.vertical_stitching_offset:self.W_remap-self.vertical_stitching_offset, :],imgLeft_unwarped[self.horizontal_stitching_offset:self.H-self.horizontal_stitching_offset, self.vertical_stitching_offset:self.W_remap-self.vertical_stitching_offset, :])
+            stitched_FR, self.parameters_FR = stitch_two_images_using_ORB(imgRight_unwarped[self.horizontal_stitching_offset:self.H-self.horizontal_stitching_offset, self.vertical_stitching_offset:self.W_remap-self.vertical_stitching_offset, :],imgFront_unwarped[self.horizontal_stitching_offset:self.H-self.horizontal_stitching_offset, self.vertical_stitching_offset:self.W_remap-self.vertical_stitching_offset, :])
+            stitched_BLRF, self.parameters_BLRF = stitch_two_images_using_ORB(stitched_BL,stitched_FR)
+            # print("BLRF\n")
+            # print(stitched_BLRF.shape)
+            
+            # crop image - czy to ma sens? - raczej nie, zobaczymy jak to będzie dzialac dalej, teraz gupie
+            # moze wypadaloby zrobic projekcje z "equrectangular"/"obround" do "rectangular" przedtym
+            height_in_stiched = numpy.nonzero(stitched_BLRF[:,int(stitched_BLRF.shape[1]/7),:][:,1])[0]
+            width_in_stiched = numpy.nonzero(stitched_BLRF[int(stitched_BLRF.shape[0]/2),:,:][:,1])[0]
+            croped_stiched_BLRF = stitched_BLRF[min(height_in_stiched):max(height_in_stiched), min(width_in_stiched):max(width_in_stiched),:]
+            self.equirectangular_image = croped_stiched_BLRF
+            
+        
+        # if SHOW_IMAGES is True:
+        #     cv2.imshow("self.equirectangular_image", self.equirectangular_image)
+        #     cv2.imwrite("prezentacja/imgBack_unwarped.jpg", imgBack_unwarped)
+        #     cv2.imwrite("prezentacja/imgBack.jpg", self.imgBack)
+        #     cv2.imwrite("prezentacja/equirectangular_image.jpg", self.equirectangular_image)
+        #     cv2.waitKey(0)
+        #     cv2.destroyAllWindows()
+        #     sys.exit()
+            
             
     def run(self, dont_stop = True):
-        self.first_frame()
-        self.read_frames_continously(dont_stop = True)
-            
-    def get_top_view_image(self):
-        return self.top_view_image
+        if self.frame_counter == 0:
+            self.read_frame()
+        while dont_stop:
+            if cv2.waitKey(1) & 0xFF == ord('q') or self.frame_read_successfully is False or dont_stop is False:
+                break
+            else:
+                if MAKE_TOP_VIEW is True:
+                    self.top_view()
+                if MAKE_EQUIRECTANGULAR_PROJECTION is True:
+                    self.equirectangular_projection()
+                self.read_frame()
+                
+                if SHOW_IMAGES is True:
+                    cv2.imshow("self.top_view_image", self.top_view_image)
+                    cv2.imshow("self.equirectangular_image", self.equirectangular_image)
+                
+                # tymczasowy warunek stopu pętli
+                if self.frame_counter == 10:
+                    dont_stop = False
+
+    # def get_top_view_image(self):
+    #     return self.top_view_image
     
-    def get_equirectangular_image(self):
-        return self.equirectangular_image
+    # def get_equirectangular_image(self):
+    #     return self.equirectangular_image
     
     def __del__(self):
         cv2.destroyAllWindows()
@@ -1263,6 +1244,7 @@ if __name__ == '__main__':
     # Declare parameters of program
     USE_PREDEFINED_CAMERA_PARAMETERS = True
     ONLY_VALID_IMAGES_FOR_CAMERA_CALIBRATION = False
+    CAMERA_READ_FROM_FILE = True # polaczyc z __init__
     
     MAKE_TOP_VIEW = True
     USE_PREDEFINED_TOP_VIEW_PARAMETERS = True
@@ -1288,6 +1270,8 @@ if __name__ == '__main__':
         only_valid_images_for_calibration.append("dataset5/0067.jpg")
     
     m = Main()
+    # m.top_view()
+    # m.equirectangular_projection()
     m.run(dont_stop = True)
     del m
     # try:
