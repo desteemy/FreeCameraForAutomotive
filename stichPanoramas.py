@@ -61,6 +61,7 @@ def find_parameters_to_make_top_view(img):
     return shrinking_parameter, crop_top, crop_bottom
 
 def make_top_view(img, points_source = None, points_destination = None, shrinking_parameter = None, crop_top = None, crop_bottom = None):
+    # start_time = time.time()
     if shrinking_parameter is None and crop_top is None and crop_bottom is None:
         # top view from points
         if points_source is None:
@@ -96,6 +97,9 @@ def make_top_view(img, points_source = None, points_destination = None, shrinkin
     # cv2.waitKey()
     # cv2.destroyAllWindows()
     # sys.exit()
+    # duration1 = time.time()
+    # print("Time in make_top_view {:.4f} {:.4f} seconds".format(duration1-start_time, 1.0))
+   
     return result
 
 def getCameraParameters_using_omnidirectional(images_paths):
@@ -277,10 +281,34 @@ def undistort3(img, K,D,DIM, balance=0.0, dim2=None, dim3=None):
     new_K = K.copy()
     new_K[0,0]=K[0,0]/2
     new_K[1,1]=K[1,1]/2
+    
     # map1, map2 = cv2.fisheye.initUndistortRectifyMap(K, D, numpy.eye(3), new_K, (800,600), cv2.CV_16SC2)  # Pass k in 1st parameter, nk in 4th parameter
     map1, map2 = cv2.fisheye.initUndistortRectifyMap(K, D, numpy.eye(3), new_K, dim3, cv2.CV_16SC2)  # Pass k in 1st parameter, nk in 4th parameter
     undistorted_img = cv2.remap(img, map1, map2, interpolation=cv2.INTER_LINEAR, borderMode=cv2.BORDER_CONSTANT)
     return undistorted_img
+
+def find_undistortion_maps(img, K,D,DIM, balance=0.0, dim2=None, dim3=None):
+    # balance not used
+    # using undistort3() with undistort_with_maps()
+    """https://stackoverflow.com/a/44009548"""
+    dim1 = img.shape[:2][::-1]  #dim1 is the dimension of input image to un-distort
+    if not dim3:
+        dim3 = dim1
+        
+    # Scaling the matrix coefficients!
+    new_K = K.copy()
+    new_K[0,0]=K[0,0]/2
+    new_K[1,1]=K[1,1]/2
+    
+    # map1, map2 = cv2.fisheye.initUndistortRectifyMap(K, D, numpy.eye(3), new_K, (800,600), cv2.CV_16SC2)  # Pass k in 1st parameter, nk in 4th parameter
+    map1, map2 = cv2.fisheye.initUndistortRectifyMap(K, D, numpy.eye(3), new_K, dim3, cv2.CV_16SC2)  # Pass k in 1st parameter, nk in 4th parameter
+    return (map1, map2)
+
+def undistort_with_maps(img, maps):
+    """https://stackoverflow.com/a/44009548"""
+    undistorted_img = cv2.remap(img, maps[0], maps[1], interpolation=cv2.INTER_LINEAR, borderMode=cv2.BORDER_CONSTANT)
+    return undistorted_img
+
 
 def undistort4(img, K,D,DIM, balance=0.0, dim2=None, dim3=None):
     if not dim2:
@@ -376,7 +404,7 @@ def get_affine_cv2(translationXY, rotation, scale, centerXY):
     return numpy.array([[a_11, a_12, a_13],
                      [a_21, a_22, a_23]])
 
-def find_parameters_for_combined_top_view(imgBack, imgLeft, imgFront, imgRight, Back_position=None, Left_position=None, Front_position=None, Right_position=None):
+def find_parameters_for_combine_top_view(imgBack, imgLeft, imgFront, imgRight, Back_position=None, Left_position=None, Front_position=None, Right_position=None):
     def emptyFunction(newValue):
         pass
 
@@ -432,7 +460,7 @@ def find_parameters_for_combined_top_view(imgBack, imgLeft, imgFront, imgRight, 
                      vertical_scale_for_perpendicular, horizontal_scale_for_perpendicular]
 
         #show images
-        combined_top_view = combine_top_views(imgBack, imgLeft, imgFront, imgRight, Back_position, Left_position, Front_position, Right_position)
+        combined_top_view, mask_Back, mask_Left, mask_Front, mask_Right = combine_top_view(imgBack, imgLeft, imgFront, imgRight, Back_position, Left_position, Front_position, Right_position)
         cv2.imshow("combined_top_view", cv2.resize(combined_top_view, (0, 0), None, 0.8, 0.8))
         
         keyInput = cv2.waitKey(33)
@@ -447,9 +475,10 @@ def find_parameters_for_combined_top_view(imgBack, imgLeft, imgFront, imgRight, 
     cv2.destroyWindow("combined_top_view")
     
     
-    return Back_position, Left_position, Front_position, Right_position
+    return Back_position, Left_position, Front_position, Right_position, mask_Back, mask_Left, mask_Front, mask_Right
 
-def combine_top_views(imgBack, imgLeft, imgFront, imgRight, Back_position=None, Left_position=None, Front_position=None, Right_position=None):
+
+def combine_top_view(imgBack, imgLeft, imgFront, imgRight, Back_position=None, Left_position=None, Front_position=None, Right_position=None, mask_Back=None, mask_Left=None, mask_Front=None, mask_Right=None):
     #Position is a list containing x_position, y_position, z_position,
     #                              camera_pitch, camera_yaw, camera_roll,
     #                              image_scale_x, image_scale_y
@@ -457,6 +486,9 @@ def combine_top_views(imgBack, imgLeft, imgFront, imgRight, Back_position=None, 
     
     #rotation // rotation then scale would give better quallity, but not speed
     #obecnie sa idealnie ustawione, dla testow
+    
+    time0 = time.time()
+    
     imgBack_rotated = cv2.rotate(imgBack, cv2.ROTATE_180)
     imgLeft_rotated = cv2.rotate(imgLeft, cv2.ROTATE_90_COUNTERCLOCKWISE)
     imgRight_rotated = cv2.rotate(imgRight, cv2.ROTATE_90_CLOCKWISE)
@@ -477,13 +509,13 @@ def combine_top_views(imgBack, imgLeft, imgFront, imgRight, Back_position=None, 
         Right_position = [0,  0,  0,  \
                          0,  0,  0,     \
                              0.4, 1]
-    
+    time1 = time.time()
     #scale
     imgBack_rotated = cv2.resize(imgBack_rotated, (0, 0), None, Back_position[6], Back_position[7])
     imgLeft_rotated = cv2.resize(imgLeft_rotated, (0, 0), None, Left_position[6], Left_position[7])
     imgFront = cv2.resize(imgFront, (0, 0), None, Front_position[6], Front_position[7])
     imgRight_rotated = cv2.resize(imgRight_rotated, (0, 0), None, Right_position[6], Right_position[7])
-    
+    time2 = time.time()
     #calculate imgCombined size
     imgCombined_height = max(imgFront.shape[0] - Front_position[1] + imgBack_rotated.shape[0] + Back_position[1], imgLeft_rotated.shape[0], imgRight_rotated.shape[0])
     imgCombined_width = max(imgRight_rotated.shape[1] + Right_position[0] + imgLeft_rotated.shape[1] - Left_position[0], imgFront.shape[1], imgBack_rotated.shape[1])
@@ -492,34 +524,72 @@ def combine_top_views(imgBack, imgLeft, imgFront, imgRight, Back_position=None, 
     
     
     #translation
-    # M_Back = get_affine_cv2((Back_position[0], Back_position[1]+center_y), Back_position[4], Back_position[6])
-    # M_Left = get_affine_cv2((Left_position[0], Left_position[1]), Left_position[4], Left_position[6])
-    # M_Front = get_affine_cv2((Front_position[0], Front_position[1]), Front_position[4], Front_position[6])
-    # M_Right = get_affine_cv2((Right_position[0]+center_x, Right_position[1]), Right_position[4], Right_position[6])
+    # # M_Back = get_affine_cv2((Back_position[0], Back_position[1]+center_y), Back_position[4], Back_position[6])
+    # # M_Left = get_affine_cv2((Left_position[0], Left_position[1]), Left_position[4], Left_position[6])
+    # # M_Front = get_affine_cv2((Front_position[0], Front_position[1]), Front_position[4], Front_position[6])
+    # # M_Right = get_affine_cv2((Right_position[0]+center_x, Right_position[1]), Right_position[4], Right_position[6])
     
-    # M_Back = get_translation2(Back_position[0], Back_position[1]+center_y)
-    # M_Left = get_translation2(Left_position[0], Left_position[1])
-    # M_Front = get_translation2(Front_position[0], Front_position[1])
-    # M_Right = get_translation2(Right_position[0]+center_x, Right_position[1])
+    # # M_Back = get_translation2(Back_position[0], Back_position[1]+center_y)
+    # # M_Left = get_translation2(Left_position[0], Left_position[1])
+    # # M_Front = get_translation2(Front_position[0], Front_position[1])
+    # # M_Right = get_translation2(Right_position[0]+center_x, Right_position[1])
     
-    # M_Back = get_translation2(center_x-int(imgBack_rotated.shape[1]/2)+Back_position[0], center_y-int(imgBack_rotated.shape[0]/2)+Back_position[1])
-    M_Back = get_translation2(center_x-int(imgBack_rotated.shape[1]/2)+Back_position[0], center_y+Back_position[1])
-    # M_Left = get_translation2(center_x-int(imgLeft_rotated.shape[1]/2)+Left_position[0], center_y-int(imgLeft_rotated.shape[0]/2)+Left_position[1])
-    M_Left = get_translation2(center_x-int(imgLeft_rotated.shape[1])+Left_position[0], center_y-int(imgLeft_rotated.shape[0]/2)+Left_position[1])
-    # M_Front = get_translation2(center_x-int(imgFront.shape[1]/2)+Front_position[0], center_y-int(imgFront.shape[0]/2)+Front_position[1])
-    M_Front = get_translation2(center_x-int(imgFront.shape[1]/2)+Front_position[0], center_y-int(imgFront.shape[0])+Front_position[1])
-    # M_Right = get_translation2(center_x-int(imgRight_rotated.shape[1]/2)+Right_position[0], center_y-int(imgRight_rotated.shape[0]/2)+Right_position[1])
-    M_Right = get_translation2(center_x+Right_position[0], center_y-int(imgRight_rotated.shape[0]/2)+Right_position[1])
+    # # M_Back = get_translation2(center_x-int(imgBack_rotated.shape[1]/2)+Back_position[0], center_y-int(imgBack_rotated.shape[0]/2)+Back_position[1])
+    # M_Back = get_translation2(center_x-int(imgBack_rotated.shape[1]/2)+Back_position[0], center_y+Back_position[1])
+    # # M_Left = get_translation2(center_x-int(imgLeft_rotated.shape[1]/2)+Left_position[0], center_y-int(imgLeft_rotated.shape[0]/2)+Left_position[1])
+    # M_Left = get_translation2(center_x-int(imgLeft_rotated.shape[1])+Left_position[0], center_y-int(imgLeft_rotated.shape[0]/2)+Left_position[1])
+    # # M_Front = get_translation2(center_x-int(imgFront.shape[1]/2)+Front_position[0], center_y-int(imgFront.shape[0]/2)+Front_position[1])
+    # M_Front = get_translation2(center_x-int(imgFront.shape[1]/2)+Front_position[0], center_y-int(imgFront.shape[0])+Front_position[1])
+    # # M_Right = get_translation2(center_x-int(imgRight_rotated.shape[1]/2)+Right_position[0], center_y-int(imgRight_rotated.shape[0]/2)+Right_position[1])
+    # M_Right = get_translation2(center_x+Right_position[0], center_y-int(imgRight_rotated.shape[0]/2)+Right_position[1])
+
+    # warpedBack = cv2.warpAffine(imgBack_rotated, M_Back, (imgCombined_width, imgCombined_height))
+    # warpedLeft = cv2.warpAffine(imgLeft_rotated, M_Left, (imgCombined_width, imgCombined_height))
+    # warpedFront = cv2.warpAffine(imgFront, M_Front, (imgCombined_width, imgCombined_height))
+    # warpedRight = cv2.warpAffine(imgRight_rotated, M_Right, (imgCombined_width, imgCombined_height))
     
-    warpedBack = cv2.warpAffine(imgBack_rotated, M_Back, (imgCombined_width, imgCombined_height))
-    warpedLeft = cv2.warpAffine(imgLeft_rotated, M_Left, (imgCombined_width, imgCombined_height))
-    warpedFront = cv2.warpAffine(imgFront, M_Front, (imgCombined_width, imgCombined_height))
-    warpedRight = cv2.warpAffine(imgRight_rotated, M_Right, (imgCombined_width, imgCombined_height))
+    warpedBack = numpy.zeros((imgCombined_height, imgCombined_width, 3))
+    warpedLeft = numpy.zeros((imgCombined_height, imgCombined_width, 3))
+    warpedFront = numpy.zeros((imgCombined_height, imgCombined_width, 3))
+    warpedRight = numpy.zeros((imgCombined_height, imgCombined_width, 3))
     
-    imgCombined1 = numpy.where(warpedRight == 0, warpedLeft, warpedRight)
-    imgCombined2 = numpy.where(warpedFront == 0, warpedBack, warpedFront)
-    imgCombined0 = numpy.where(imgCombined2 == 0, imgCombined1, imgCombined2)
+    M_Back = (center_x-int(imgBack_rotated.shape[1]/2)+Back_position[0], center_y+Back_position[1])
+    M_Left = (center_x-int(imgLeft_rotated.shape[1])+Left_position[0], center_y-int(imgLeft_rotated.shape[0]/2)+Left_position[1])
+    M_Front = (center_x-int(imgFront.shape[1]/2)+Front_position[0], center_y-int(imgFront.shape[0])+Front_position[1])
+    M_Right = (center_x+Right_position[0], center_y-int(imgRight_rotated.shape[0]/2)+Right_position[1])
     
+    warpedBack[M_Back[1] : M_Back[1] + imgBack_rotated.shape[0], M_Back[0] : M_Back[0] + imgBack_rotated.shape[1], : ] = imgBack_rotated
+    warpedLeft[M_Left[1] : M_Left[1] + imgLeft_rotated.shape[0], M_Left[0] : M_Left[0] + imgLeft_rotated.shape[1], : ] = imgLeft_rotated
+    warpedFront[M_Front[1] : M_Front[1] + imgFront.shape[0], M_Front[0] : M_Front[0] + imgFront.shape[1], : ] = imgFront
+    warpedRight[M_Right[1] : M_Right[1] + imgRight_rotated.shape[0], M_Right[0] : M_Right[0] + imgRight_rotated.shape[1], : ] = imgRight_rotated
+    time3 = time.time()
+    # imgCombined1 = numpy.where(warpedRight == 0, warpedLeft, warpedRight)
+    # imgCombined2 = numpy.where(warpedFront== 0, warpedBack, warpedFront)
+    # imgCombined = numpy.where(imgCombined2 == 0, imgCombined1, imgCombined2)
+    
+    return_masks = False
+    if mask_Back is None or mask_Left is None or mask_Front is None or mask_Right is None:
+        return_masks = True
+        # mask_Back = numpy.nonzero(warpedBack)
+        # mask_Left = numpy.nonzero(warpedLeft)
+        # mask_Front = numpy.nonzero(warpedFront)
+        # mask_Right = numpy.nonzero(warpedRight)
+        mask_Back = (warpedBack != 0)
+        mask_Left = (warpedLeft != 0)
+        mask_Front = (warpedFront != 0)
+        mask_Right = (warpedRight != 0)
+    
+    imgCombined = numpy.zeros((imgCombined_height, imgCombined_width, 3), dtype=numpy.uint8)
+    imgCombined[mask_Left] = warpedLeft[mask_Left]
+    imgCombined[mask_Right] = warpedRight[mask_Right]
+    imgCombined[mask_Back] = warpedBack[mask_Back]
+    imgCombined[mask_Front] = warpedFront[mask_Front]
+    time4 = time.time()
+    # cv2.imshow("imgBack_rotated", imgBack_rotated)
+    # cv2.imshow("imgCombined", imgCombined)
+    # cv2.imshow("imgLeft_rotated", imgLeft_rotated)
+    # cv2.imshow("imgFront", imgFront)
+    # cv2.imshow("imgRight_rotated", imgRight_rotated)
     # cv2.imshow("Wrap Affine Back", warpedBack)
     # cv2.imshow("Wrap Affine Left", warpedLeft)
     # cv2.imshow("Wrap Affine Front", warpedFront)
@@ -528,8 +598,12 @@ def combine_top_views(imgBack, imgLeft, imgFront, imgRight, Back_position=None, 
     # cv2.waitKey(0)
     # cv2.destroyAllWindows()
     # sys.exit()
-    
-    return imgCombined0
+    print("Time in rotate {:.4f} scale {:.4f} trans {:.4f} combine {:.4f} total {:.4f} seconds".format(time1-time0, time2-time1, time3-time2, time4-time3, time4-time0))
+         
+    if return_masks:
+        return imgCombined, mask_Back, mask_Left, mask_Front, mask_Right
+    else:
+        return imgCombined
 
 def equirect_proj(x_proj, y_proj, W, H, fov):
     """Return the equirectangular projection on a unit sphere,
@@ -913,10 +987,11 @@ class Main():
 
 
         #unwrap images using fisheye calibration
-        imgBack_unwarped0 = undistort3(self.imgBack,self.K,self.D,self.DIM)
-        imgLeft_unwarped0 = undistort3(self.imgLeft,self.K,self.D,self.DIM)
-        imgFront_unwarped0 = undistort3(self.imgFront,self.K,self.D,self.DIM)
-        imgRight_unwarped0 = undistort3(self.imgRight,self.K,self.D,self.DIM)
+        self.undistortion_maps = find_undistortion_maps(self.imgBack,self.K,self.D,self.DIM)
+        imgBack_unwarped0 = undistort_with_maps(self.imgBack, self.undistortion_maps)
+        imgLeft_unwarped0 = undistort_with_maps(self.imgLeft, self.undistortion_maps)
+        imgFront_unwarped0 = undistort_with_maps(self.imgFront, self.undistortion_maps)
+        imgRight_unwarped0 = undistort_with_maps(self.imgRight, self.undistortion_maps)
         # img3 = numpy.concatenate((imgBack_unwarped0, imgLeft_unwarped0, imgFront_unwarped0, imgRight_unwarped0), axis=1)
 
         if USE_PREDEFINED_TOP_VIEW_PARAMETERS is True:
@@ -956,39 +1031,40 @@ class Main():
             # self.Left_position = [0, -5, 0, 0, 0, 0, 0.6, 1.54]
             # self.Front_position = [0, 0, 0, 0, 0, 0, 1.52, 0.62]
             # self.Right_position = [0, -5, 0, 0, 0, 0, 0.6, 1.54]
+            _, self.mask_Back, self.mask_Left, self.mask_Front, self.mask_Right = combine_top_view(imgBack_topview, imgLeft_topview, imgFront_topview, imgRight_topview, self.Back_position, self.Left_position, self.Front_position, self.Right_position)
         else:
-            self.vertical_offset_for_parallel = 320
-            self.horizontal_offset_for_parallel = 160
-            self.vertical_offset_for_perpendicular = 150
-            self.horizontal_offset_for_perpendicular = 145
+            vertical_offset_for_parallel = 320
+            horizontal_offset_for_parallel = 160
+            vertical_offset_for_perpendicular = 150
+            horizontal_offset_for_perpendicular = 145
             
-            self.vertical_scale_for_parallel = 75
-            self.horizontal_scale_for_parallel = 30
-            self.vertical_scale_for_perpendicular = 29
-            self.horizontal_scale_for_perpendicular = 76
-            # self.vertical_offset_for_parallel = 320
-            # self.horizontal_offset_for_parallel = 160
-            # self.vertical_offset_for_perpendicular = 148
-            # self.horizontal_offset_for_perpendicular = 145
+            vertical_scale_for_parallel = 75
+            horizontal_scale_for_parallel = 30
+            vertical_scale_for_perpendicular = 29
+            horizontal_scale_for_perpendicular = 76
+            # vertical_offset_for_parallel = 320
+            # horizontal_offset_for_parallel = 160
+            # vertical_offset_for_perpendicular = 148
+            # horizontal_offset_for_perpendicular = 145
             
-            # self.vertical_scale_for_parallel = 76
-            # self.horizontal_scale_for_parallel = 35
-            # self.vertical_scale_for_perpendicular = 29
-            # self.horizontal_scale_for_perpendicular = 77
-            self.Back_position = [self.vertical_offset_for_parallel,  self.horizontal_offset_for_parallel,  0,  \
+            # vertical_scale_for_parallel = 76
+            # horizontal_scale_for_parallel = 35
+            # vertical_scale_for_perpendicular = 29
+            # horizontal_scale_for_perpendicular = 77
+            self.Back_position = [vertical_offset_for_parallel,  horizontal_offset_for_parallel,  0,  \
                       0,  0,  0,     \
-                          self.vertical_scale_for_parallel, self.horizontal_scale_for_parallel]
-            self.Left_position = [-self.vertical_offset_for_perpendicular,  self.horizontal_offset_for_perpendicular,  0,  \
+                          vertical_scale_for_parallel, horizontal_scale_for_parallel]
+            self.Left_position = [-vertical_offset_for_perpendicular,  horizontal_offset_for_perpendicular,  0,  \
                       0,  0,  0,     \
-                          self.vertical_scale_for_perpendicular, self.horizontal_scale_for_perpendicular]
-            self.Front_position = [self.vertical_offset_for_parallel,  -self.horizontal_offset_for_parallel,  0,  \
+                          vertical_scale_for_perpendicular, horizontal_scale_for_perpendicular]
+            self.Front_position = [vertical_offset_for_parallel,  -horizontal_offset_for_parallel,  0,  \
                       0,  0,  0,     \
-                          self.vertical_scale_for_parallel, self.horizontal_scale_for_parallel]
-            self.Right_position = [self.vertical_offset_for_perpendicular,  self.horizontal_offset_for_perpendicular,  0,  \
+                          vertical_scale_for_parallel, horizontal_scale_for_parallel]
+            self.Right_position = [vertical_offset_for_perpendicular,  horizontal_offset_for_perpendicular,  0,  \
                       0,  0,  0,     \
-                          self.vertical_scale_for_perpendicular, self.horizontal_scale_for_perpendicular]
+                          vertical_scale_for_perpendicular, horizontal_scale_for_perpendicular]
     
-            self.Back_position, self.Left_position, self.Front_position, self.Right_position = find_parameters_for_combined_top_view(imgBack_topview, imgLeft_topview, imgFront_topview, imgRight_topview, self.Back_position, self.Left_position, self.Front_position, self.Right_position)
+            self.Back_position, self.Left_position, self.Front_position, self.Right_position, self.mask_Back, self.mask_Left, self.mask_Front, self.mask_Right = find_parameters_for_combine_top_view(imgBack_topview, imgLeft_topview, imgFront_topview, imgRight_topview, self.Back_position, self.Left_position, self.Front_position, self.Right_position)
 
         
     def calibrate_equirectangular_projection(self):
@@ -1123,26 +1199,33 @@ class Main():
             # time.sleep(0.2)
         
     def top_view(self):
+        time0 = time.time()
         #unwrap images using fisheye calibration
-        imgBack_unwarped0 = undistort3(self.imgBack,self.K,self.D,self.DIM)
-        imgLeft_unwarped0 = undistort3(self.imgLeft,self.K,self.D,self.DIM)
-        imgFront_unwarped0 = undistort3(self.imgFront,self.K,self.D,self.DIM)
-        imgRight_unwarped0 = undistort3(self.imgRight,self.K,self.D,self.DIM)
+        imgBack_unwarped0 = undistort_with_maps(self.imgBack, self.undistortion_maps)
+        imgLeft_unwarped0 = undistort_with_maps(self.imgLeft, self.undistortion_maps)
+        imgFront_unwarped0 = undistort_with_maps(self.imgFront, self.undistortion_maps)
+        imgRight_unwarped0 = undistort_with_maps(self.imgRight, self.undistortion_maps)
+        
         # img3 = numpy.concatenate((imgBack_unwarped0, imgLeft_unwarped0, imgFront_unwarped0, imgRight_unwarped0), axis=1)
-   
+        time1 = time.time()
         imgBack_topview = make_top_view(imgBack_unwarped0, shrinking_parameter=self.shrinking_parameter, crop_top=self.crop_top, crop_bottom=self.crop_bottom)
         imgLeft_topview = make_top_view(imgLeft_unwarped0, shrinking_parameter=self.shrinking_parameter, crop_top=self.crop_top, crop_bottom=self.crop_bottom)
         imgFront_topview = make_top_view(imgFront_unwarped0, shrinking_parameter=self.shrinking_parameter, crop_top=self.crop_top, crop_bottom=self.crop_bottom)
         imgRight_topview = make_top_view(imgRight_unwarped0, shrinking_parameter=self.shrinking_parameter, crop_top=self.crop_top, crop_bottom=self.crop_bottom)
 
-        combined_top_view = combine_top_views(imgBack_topview, imgLeft_topview, imgFront_topview, imgRight_topview, self.Back_position, self.Left_position, self.Front_position, self.Right_position)
-
+        time2 = time.time()
+        combined_top_view = combine_top_view(imgBack_topview, imgLeft_topview, imgFront_topview, imgRight_topview, self.Back_position, self.Left_position, self.Front_position, self.Right_position, self.mask_Back, self.mask_Left, self.mask_Front, self.mask_Right)
+        time3 = time.time()
         # crop image
         # DO ZMIANY ? zamiast liczyć kształt to zrobić static variable jakiegos self.costam
         height_in_stiched = numpy.nonzero(combined_top_view[:,int(combined_top_view.shape[1]/2),:][:,1])[0]
         width_in_stiched = numpy.nonzero(combined_top_view[int(combined_top_view.shape[0]/2),:,:][:,1])[0]
         self.top_view_image = combined_top_view[min(height_in_stiched):max(height_in_stiched), min(width_in_stiched):max(width_in_stiched),:]
-
+        time4 = time.time()
+            
+        # print("Time in undistort {:.4f} make {:.4f} combine {:.4f} crop {:.4f} total {:.4f} seconds".format(time1-time0, time2-time1, time3-time2, time4-time3, time4-time0))
+                
+        
         # cv2.imwrite("prezentacja/imgBack_unwarped0.jpg", imgBack_unwarped0)
         # cv2.imwrite("prezentacja/imgBack_topview.jpg", imgBack_topview)
         # cv2.imwrite("prezentacja/top_view_image.jpg", self.top_view_image)
@@ -1151,6 +1234,7 @@ class Main():
         #     cv2.imshow("self.top_view_image", self.top_view_image)
         #     cv2.waitKey(0)
         #     cv2.destroyWindow("self.top_view_image")
+        
  
     def equirectangular_projection(self):
         imgBack_unwarped = cv2.remap(self.imgBack, self.xmap, self.ymap, cv2.INTER_LINEAR)
@@ -1208,20 +1292,33 @@ class Main():
             if cv2.waitKey(1) & 0xFF == ord('q') or self.frame_read_successfully is False or dont_stop is False:
                 break
             else:
+                time0 = time.time()
+                
                 if MAKE_TOP_VIEW is True:
                     self.top_view()
+                time1 = time.time()
+
                 if MAKE_EQUIRECTANGULAR_PROJECTION is True:
                     self.equirectangular_projection()
+                time2 = time.time()
+                
                 self.read_frame()
+                time3 = time.time()
                 
                 if SHOW_IMAGES is True:
                     cv2.imshow("self.top_view_image", self.top_view_image)
                     cv2.imshow("self.equirectangular_image", self.equirectangular_image)
-                
-                # tymczasowy warunek stopu pętli
-                if self.frame_counter == 10:
-                    dont_stop = False
 
+                # tymczasowy warunek stopu pętli
+                else:
+                    if self.frame_counter == 10:
+                        dont_stop = False
+                                            
+                time4 = time.time()
+                    
+                # print("Time in top_view {:.4f} equi {:.4f} read {:.4f} show {:.4f} total {:.4f} seconds".format(time1-time0, time2-time1, time3-time2, time4-time3, time4-time0))
+                
+                        
     # def get_top_view_image(self):
     #     return self.top_view_image
     
@@ -1366,8 +1463,8 @@ if __name__ == '__main__':
 # # Left_position = [0, 0, 0, 0, 0, 0, 0.54, 1.56]
 # # Front_position = [0, -8, 0, 0, 0, 0, 1.38, 0.56]
 # # Right_position = [0, 0, 0, 0, 0, 0, 0.54, 1.56]
-# Back_position, Left_position, Front_position, Right_position = find_parameters_for_combined_top_view(imgBack_topview, imgLeft_topview, imgFront_topview, imgRight_topview, Back_position, Left_position, Front_position, Right_position)
-# combined_top_view = combine_top_views(imgBack_topview, imgLeft_topview, imgFront_topview, imgRight_topview, Back_position, Left_position, Front_position, Right_position)
+# Back_position, Left_position, Front_position, Right_position = find_parameters_for_combine_top_view(imgBack_topview, imgLeft_topview, imgFront_topview, imgRight_topview, Back_position, Left_position, Front_position, Right_position)
+# combined_top_view = combine_top_view(imgBack_topview, imgLeft_topview, imgFront_topview, imgRight_topview, Back_position, Left_position, Front_position, Right_position)
 
 # cv2.imshow("Result of top view test", cv2.resize(combined_top_view, (0, 0), None, 0.8, 0.8))
 # cv2.waitKey(0)
