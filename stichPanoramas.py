@@ -56,12 +56,12 @@ def find_parameters_to_make_top_view(img):
         cv2.imshow("stackedTwoImages", top_view_image)
         
         keyInput = cv2.waitKey(33)
-        if keyInput==27:    # Esc key to stop
+        if keyInput == 27 or keyInput == 113:    # Esc key to stop
             break
-        elif keyInput==-1:  # normally -1 returned,so don't print it
+        elif keyInput == -1:  # normally -1 returned,so don't print it
             continue
-        else:
-            print(keyInput) # else print its value
+        # else:
+        #     print(keyInput) # else print its value
         
     cv2.destroyWindow("TrackBars")
     cv2.destroyWindow("stackedTwoImages")
@@ -420,26 +420,38 @@ def find_parameters_for_combine_top_view(imgBack, imgLeft, imgFront, imgRight, B
     cv2.resizeWindow("TrackBars", 1000, 500)
     
     if Back_position is None or Left_position is None or Front_position is None or Right_position is None:
-        cv2.createTrackbar("vertical_offset_for_parallel", "TrackBars", int(imgFront.shape[1]/2),int(imgFront.shape[1]),emptyFunction)
+        cv2.createTrackbar("vertical_offset_for_parallel", "TrackBars", int(imgFront.shape[1]/2),int(imgFront.shape[1]*3/4),emptyFunction)
         cv2.createTrackbar("horizontal_offset_for_parallel", "TrackBars", int(imgLeft.shape[1]/4),int(imgLeft.shape[1]/2),emptyFunction)
         cv2.createTrackbar("vertical_offset_for_perpendicular", "TrackBars", int(imgLeft.shape[0]/2),int(imgLeft.shape[0]),emptyFunction)
-        cv2.createTrackbar("horizontal_offset_for_perpendicular", "TrackBars", int(imgFront.shape[0]/2),int(imgFront.shape[0]),emptyFunction)
+        cv2.createTrackbar("horizontal_offset_for_perpendicular", "TrackBars", int(imgFront.shape[0]/2),int(imgFront.shape[0]*3/4),emptyFunction)
         
-        cv2.createTrackbar("vertical_scale_for_parallel", "TrackBars", 49,99,emptyFunction)
-        cv2.createTrackbar("horizontal_scale_for_parallel", "TrackBars", 49,99,emptyFunction)
-        cv2.createTrackbar("vertical_scale_for_perpendicular", "TrackBars", 49,99,emptyFunction)
-        cv2.createTrackbar("horizontal_scale_for_perpendicular", "TrackBars", 49,99,emptyFunction)
+        # Scale can be fixed, that conversion was used to omit minimum 0, but there is cv2.setTrackbarMin
+        cv2.createTrackbar("vertical_scale_for_parallel", "TrackBars", 50,80,emptyFunction)
+        cv2.createTrackbar("horizontal_scale_for_parallel", "TrackBars", 50,80,emptyFunction)
+        cv2.createTrackbar("vertical_scale_for_perpendicular", "TrackBars", 50,80,emptyFunction)
+        cv2.createTrackbar("horizontal_scale_for_perpendicular", "TrackBars", 50,80,emptyFunction)
         
     else:
-        cv2.createTrackbar("vertical_offset_for_parallel", "TrackBars", int(Back_position[0]),int(imgFront.shape[1]),emptyFunction)
+        cv2.createTrackbar("vertical_offset_for_parallel", "TrackBars", int(Back_position[0]),int(imgFront.shape[1]*3/4),emptyFunction)
         cv2.createTrackbar("horizontal_offset_for_parallel", "TrackBars", int(Back_position[1]),int(imgLeft.shape[1]/2),emptyFunction)
         cv2.createTrackbar("vertical_offset_for_perpendicular", "TrackBars", int(Right_position[0]),int(imgLeft.shape[0]),emptyFunction)
-        cv2.createTrackbar("horizontal_offset_for_perpendicular", "TrackBars", int(Right_position[1]),int(imgFront.shape[0]),emptyFunction)
+        cv2.createTrackbar("horizontal_offset_for_perpendicular", "TrackBars", int(Right_position[1]),int(imgFront.shape[0]*3/4),emptyFunction)
         
-        cv2.createTrackbar("vertical_scale_for_parallel", "TrackBars", int(Back_position[6]),99,emptyFunction)
-        cv2.createTrackbar("horizontal_scale_for_parallel", "TrackBars", int(Back_position[7]),99,emptyFunction)
-        cv2.createTrackbar("vertical_scale_for_perpendicular", "TrackBars", int(Right_position[6]),99,emptyFunction)
-        cv2.createTrackbar("horizontal_scale_for_perpendicular", "TrackBars", int(Right_position[7]),99,emptyFunction)
+        cv2.createTrackbar("vertical_scale_for_parallel", "TrackBars", int(Back_position[6]),80,emptyFunction)
+        cv2.createTrackbar("horizontal_scale_for_parallel", "TrackBars", int(Back_position[7]),80,emptyFunction)
+        cv2.createTrackbar("vertical_scale_for_perpendicular", "TrackBars", int(Right_position[6]),80,emptyFunction)
+        cv2.createTrackbar("horizontal_scale_for_perpendicular", "TrackBars", int(Right_position[7]),80,emptyFunction)
+
+    # add minimal limits
+    cv2.setTrackbarMin("vertical_offset_for_parallel", "TrackBars", int(imgFront.shape[1]/4))
+    cv2.setTrackbarMin("horizontal_offset_for_parallel", "TrackBars", int(imgLeft.shape[1]*0.2))
+    cv2.setTrackbarMin("vertical_offset_for_perpendicular", "TrackBars", int(imgLeft.shape[0]*0.4))
+    cv2.setTrackbarMin("horizontal_offset_for_perpendicular", "TrackBars", int(imgFront.shape[0]/4))
+    
+    cv2.setTrackbarMin("vertical_scale_for_parallel", "TrackBars", 20)
+    cv2.setTrackbarMin("horizontal_scale_for_parallel", "TrackBars", 20)
+    cv2.setTrackbarMin("vertical_scale_for_perpendicular", "TrackBars", 20)
+    cv2.setTrackbarMin("horizontal_scale_for_perpendicular", "TrackBars", 20)
 
     while True:
         #adjust parameters
@@ -448,10 +460,10 @@ def find_parameters_for_combine_top_view(imgBack, imgLeft, imgFront, imgRight, B
         vertical_offset_for_perpendicular = cv2.getTrackbarPos("vertical_offset_for_perpendicular", "TrackBars") - int(imgLeft.shape[0]/2)
         horizontal_offset_for_perpendicular = cv2.getTrackbarPos("horizontal_offset_for_perpendicular", "TrackBars") - int(imgFront.shape[0]/2)
         
-        vertical_scale_for_parallel = (cv2.getTrackbarPos("vertical_scale_for_parallel", "TrackBars") + 1)/50
-        horizontal_scale_for_parallel = (cv2.getTrackbarPos("horizontal_scale_for_parallel", "TrackBars") + 1)/50
-        vertical_scale_for_perpendicular = (cv2.getTrackbarPos("vertical_scale_for_perpendicular", "TrackBars") + 1)/50
-        horizontal_scale_for_perpendicular = (cv2.getTrackbarPos("horizontal_scale_for_perpendicular", "TrackBars") + 1)/50
+        vertical_scale_for_parallel = cv2.getTrackbarPos("vertical_scale_for_parallel", "TrackBars")/50
+        horizontal_scale_for_parallel = cv2.getTrackbarPos("horizontal_scale_for_parallel", "TrackBars")/50
+        vertical_scale_for_perpendicular = cv2.getTrackbarPos("vertical_scale_for_perpendicular", "TrackBars")/50
+        horizontal_scale_for_perpendicular = cv2.getTrackbarPos("horizontal_scale_for_perpendicular", "TrackBars")/50
         
         #calculate from parameters
         Back_position = [vertical_offset_for_parallel,  horizontal_offset_for_parallel,  0,  \
@@ -472,12 +484,12 @@ def find_parameters_for_combine_top_view(imgBack, imgLeft, imgFront, imgRight, B
         cv2.imshow("combined_top_view", cv2.resize(combined_top_view, (0, 0), None, 0.8, 0.8))
         
         keyInput = cv2.waitKey(33)
-        if keyInput==27:    # Esc key to stop
+        if keyInput == 27 or keyInput == 113:    # Esc key to stop
             break
-        elif keyInput==-1:  # normally -1 returned,so don't print it
+        elif keyInput == -1:  # normally -1 returned,so don't print it
             continue
-        else:
-            print(keyInput) # else print its value
+        # else:
+        #     print(keyInput) # else print its value
         
     cv2.destroyWindow("TrackBars")
     cv2.destroyWindow("combined_top_view")
@@ -687,13 +699,13 @@ def find_parameters_for_two_image_stack(img1, img2, offset1=0, offset2=0):
     def emptyFunction(newValue):
         pass
     
-    # img1Copy = img1.copy()
-    # img2Copy = img2.copy()
-    
     cv2.namedWindow("TrackBars")
     cv2.resizeWindow("TrackBars", 900, 140)
-    cv2.createTrackbar("Left offset", "TrackBars", offset1, img1.shape[1], emptyFunction)
-    cv2.createTrackbar("Right offset", "TrackBars", offset2, img2.shape[1], emptyFunction)
+    cv2.createTrackbar("Left offset", "TrackBars", offset1, int(img1.shape[1]*0.8), emptyFunction)
+    cv2.createTrackbar("Right offset", "TrackBars", offset2, int(img2.shape[1]*0.8), emptyFunction)
+    
+    cv2.setTrackbarMin("Left offset", "TrackBars", 1)
+    cv2.setTrackbarMin("Right offset", "TrackBars", 1)
         
     while True:
         #adjust offset
@@ -708,12 +720,12 @@ def find_parameters_for_two_image_stack(img1, img2, offset1=0, offset2=0):
         
         
         keyInput = cv2.waitKey(33)
-        if keyInput==27:    # Esc key to stop
+        if keyInput == 27 or keyInput == 113:    # Esc key to stop
             break
-        elif keyInput==-1:  # normally -1 returned,so don't print it
+        elif keyInput == -1:  # normally -1 returned,so don't print it
             continue
-        else:
-            print(keyInput) # else print its value
+        # else:
+        #     print(keyInput) # else print its value
         
     cv2.destroyWindow("TrackBars")
     cv2.destroyWindow("stackedTwoImages")
@@ -1063,17 +1075,17 @@ class Main():
             # self.Left_position = [0, -5, 0, 0, 0, 0, 0.6, 1.54]
             # self.Front_position = [0, 0, 0, 0, 0, 0, 1.52, 0.62]
             # self.Right_position = [0, -5, 0, 0, 0, 0, 0.6, 1.54]
-            _, self.mask_Back, self.mask_Left, self.mask_Front, self.mask_Right = combine_top_view(imgBack_topview, imgLeft_topview, imgFront_topview, imgRight_topview, self.Back_position, self.Left_position, self.Front_position, self.Right_position, return_masks=True, first_run=True)
+            self.mask_Back, self.mask_Left, self.mask_Front, self.mask_Right = combine_top_view(imgBack_topview, imgLeft_topview, imgFront_topview, imgRight_topview, self.Back_position, self.Left_position, self.Front_position, self.Right_position, return_masks=True, first_run=False)
         else:
             vertical_offset_for_parallel = 320
             horizontal_offset_for_parallel = 160
             vertical_offset_for_perpendicular = 150
             horizontal_offset_for_perpendicular = 145
             
-            vertical_scale_for_parallel = 75
-            horizontal_scale_for_parallel = 30
-            vertical_scale_for_perpendicular = 29
-            horizontal_scale_for_perpendicular = 76
+            vertical_scale_for_parallel = 76
+            horizontal_scale_for_parallel = 31
+            vertical_scale_for_perpendicular = 30
+            horizontal_scale_for_perpendicular = 77
             # vertical_offset_for_parallel = 320
             # horizontal_offset_for_parallel = 160
             # vertical_offset_for_perpendicular = 148
@@ -1231,7 +1243,7 @@ class Main():
             # time.sleep(0.2)
         
     def top_view(self):
-        time0 = time.time()
+        # time0 = time.time()
         #unwrap images using fisheye calibration
         imgBack_unwarped0 = undistort_with_maps(self.imgBack, self.undistortion_maps)
         imgLeft_unwarped0 = undistort_with_maps(self.imgLeft, self.undistortion_maps)
@@ -1239,23 +1251,23 @@ class Main():
         imgRight_unwarped0 = undistort_with_maps(self.imgRight, self.undistortion_maps)
         
         # img3 = numpy.concatenate((imgBack_unwarped0, imgLeft_unwarped0, imgFront_unwarped0, imgRight_unwarped0), axis=1)
-        time1 = time.time()
+        # time1 = time.time()
         imgBack_topview = make_top_view(imgBack_unwarped0, shrinking_parameter=self.shrinking_parameter, crop_top=self.crop_top, crop_bottom=self.crop_bottom)
         imgLeft_topview = make_top_view(imgLeft_unwarped0, shrinking_parameter=self.shrinking_parameter, crop_top=self.crop_top, crop_bottom=self.crop_bottom)
         imgFront_topview = make_top_view(imgFront_unwarped0, shrinking_parameter=self.shrinking_parameter, crop_top=self.crop_top, crop_bottom=self.crop_bottom)
         imgRight_topview = make_top_view(imgRight_unwarped0, shrinking_parameter=self.shrinking_parameter, crop_top=self.crop_top, crop_bottom=self.crop_bottom)
 
-        time2 = time.time()
-        combined_top_view = combine_top_view(imgBack_topview, imgLeft_topview, imgFront_topview, imgRight_topview, self.Back_position, self.Left_position, self.Front_position, self.Right_position, self.mask_Back, self.mask_Left, self.mask_Front, self.mask_Right)
-        time3 = time.time()
-        # crop image
-        # DO ZMIANY ? zamiast liczyć kształt to zrobić static variable jakiegos self.costam
-        height_in_stiched = numpy.nonzero(combined_top_view[:,int(combined_top_view.shape[1]/2),:][:,1])[0]
-        width_in_stiched = numpy.nonzero(combined_top_view[int(combined_top_view.shape[0]/2),:,:][:,1])[0]
-        self.top_view_image = combined_top_view[min(height_in_stiched):max(height_in_stiched), min(width_in_stiched):max(width_in_stiched),:]
-        time4 = time.time()
+        # time2 = time.time()
+        # combined_top_view = combine_top_view(imgBack_topview, imgLeft_topview, imgFront_topview, imgRight_topview, self.Back_position, self.Left_position, self.Front_position, self.Right_position, self.mask_Back, self.mask_Left, self.mask_Front, self.mask_Right)
+        self.top_view_image = combine_top_view(imgBack_topview, imgLeft_topview, imgFront_topview, imgRight_topview, self.Back_position, self.Left_position, self.Front_position, self.Right_position, self.mask_Back, self.mask_Left, self.mask_Front, self.mask_Right)
+        # time3 = time.time()
+        
+        # height_in_stiched = numpy.nonzero(combined_top_view[:,int(combined_top_view.shape[1]/2),:][:,1])[0]
+        # width_in_stiched = numpy.nonzero(combined_top_view[int(combined_top_view.shape[0]/2),:,:][:,1])[0]
+        # self.top_view_image = combined_top_view[min(height_in_stiched):max(height_in_stiched), min(width_in_stiched):max(width_in_stiched),:]
+        # time4 = time.time()
             
-        # print("Time in undistort {:.4f} make {:.4f} combine {:.4f} crop {:.4f} total {:.4f} seconds".format(time1-time0, time2-time1, time3-time2, time4-time3, time4-time0))
+        # print("Time in undistort {:.4f} make {:.4f} combine {:.4f} total {:.4f} seconds".format(time1-time0, time2-time1, time3-time2, time3-time0))
                 
         
         # cv2.imwrite("prezentacja/imgBack_unwarped0.jpg", imgBack_unwarped0)
@@ -1264,8 +1276,11 @@ class Main():
         
         # if SHOW_IMAGES is True:
         #     cv2.imshow("self.top_view_image", self.top_view_image)
+        #     # cv2.imshow("combined_top_view", combined_top_view)
         #     cv2.waitKey(0)
         #     cv2.destroyWindow("self.top_view_image")
+        #     # cv2.destroyAllWindows()
+        #     # sys.exit()
         
  
     def equirectangular_projection(self):
@@ -1383,11 +1398,11 @@ if __name__ == '__main__':
     
     MAKE_TOP_VIEW = True
     USE_PREDEFINED_TOP_VIEW_PARAMETERS = True
-    USE_PREDEFINED_COMBINE_TOP_VIEW_PARAMETERS = False # False - ale ciagle sa wstepne
+    USE_PREDEFINED_COMBINE_TOP_VIEW_PARAMETERS = True # False - ale ciagle sa wstepne
     
     MAKE_EQUIRECTANGULAR_PROJECTION = True
     
-    USE_EQUIRECTANGULAR_METHOD = True
+    USE_EQUIRECTANGULAR_METHOD = True # False doesn't work for now
     USE_PREDEFINED_EQURECTANGULAR_PARAMETERS = True # False - ale ciagle sa wstepne
     USE_ORB_IN_EQUIRECTANGULAR_METHOD = not USE_EQUIRECTANGULAR_METHOD
     
@@ -1404,11 +1419,11 @@ if __name__ == '__main__':
         only_valid_images_for_calibration.append("dataset5/0058.jpg")
         only_valid_images_for_calibration.append("dataset5/0067.jpg")
     
-    m = Main()
-    # m.top_view()
-    # m.equirectangular_projection()
-    m.run(dont_stop = True)
-    del m
+    main = Main()
+    # main.top_view()
+    # main.equirectangular_projection()
+    main.run(dont_stop = True)
+    del main
     # try:
     #     main()
     # except Exception:
