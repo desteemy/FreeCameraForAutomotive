@@ -27,7 +27,7 @@ def find_parameters_to_make_top_view(img):
     
     cv2.namedWindow("TrackBars")
     cv2.resizeWindow("TrackBars", 900, 140)
-    cv2.createTrackbar("Shrinking parameter", "TrackBars", 0,int(img.shape[1]/2),emptyFunction)
+    cv2.createTrackbar("Shrinking parameter", "TrackBars", 0,int(img.shape[1]/2-1),emptyFunction)
     cv2.createTrackbar("Crop top", "TrackBars", 0,img.shape[0],emptyFunction)
     cv2.createTrackbar("Crop bottom", "TrackBars", 0,img.shape[0],emptyFunction)
     
@@ -36,6 +36,14 @@ def find_parameters_to_make_top_view(img):
         shrinking_parameter = cv2.getTrackbarPos("Shrinking parameter", "TrackBars")
         crop_top = cv2.getTrackbarPos("Crop top", "TrackBars")
         crop_bottom = cv2.getTrackbarPos("Crop bottom", "TrackBars")
+        
+        cv2.setTrackbarMax("Crop top", "TrackBars", int(img.shape[0]-crop_top-15))
+        cv2.setTrackbarMax("Crop bottom", "TrackBars", int(img.shape[0]-crop_bottom-15))
+        
+        crop_top = min(int(img.shape[0]-crop_top-15), crop_top)
+        crop_bottom = min(int(img.shape[0]-crop_bottom-15), crop_bottom)
+        cv2.setTrackbarPos("Crop top", "TrackBars", crop_top)
+        cv2.setTrackbarPos("Crop bottom", "TrackBars", crop_bottom)
         
         #calculate from parameters
         heigth_original, width = img.shape[:2]
@@ -460,7 +468,7 @@ def find_parameters_for_combine_top_view(imgBack, imgLeft, imgFront, imgRight, B
                      vertical_scale_for_perpendicular, horizontal_scale_for_perpendicular]
 
         #show images
-        combined_top_view, mask_Back, mask_Left, mask_Front, mask_Right = combine_top_view(imgBack, imgLeft, imgFront, imgRight, Back_position, Left_position, Front_position, Right_position)
+        combined_top_view = combine_top_view(imgBack, imgLeft, imgFront, imgRight, Back_position, Left_position, Front_position, Right_position, return_masks = False, first_run = True)
         cv2.imshow("combined_top_view", cv2.resize(combined_top_view, (0, 0), None, 0.8, 0.8))
         
         keyInput = cv2.waitKey(33)
@@ -474,21 +482,18 @@ def find_parameters_for_combine_top_view(imgBack, imgLeft, imgFront, imgRight, B
     cv2.destroyWindow("TrackBars")
     cv2.destroyWindow("combined_top_view")
     
+    mask_Back, mask_Left, mask_Front, mask_Right = combine_top_view(imgBack, imgLeft, imgFront, imgRight, Back_position, Left_position, Front_position, Right_position, return_masks = True, first_run = False)
     
     return Back_position, Left_position, Front_position, Right_position, mask_Back, mask_Left, mask_Front, mask_Right
 
 
-def combine_top_view(imgBack, imgLeft, imgFront, imgRight, Back_position=None, Left_position=None, Front_position=None, Right_position=None, mask_Back=None, mask_Left=None, mask_Front=None, mask_Right=None):
+def combine_top_view(imgBack, imgLeft, imgFront, imgRight, Back_position=None, Left_position=None, Front_position=None, Right_position=None, mask_Back=None, mask_Left=None, mask_Front=None, mask_Right=None, return_masks = False, first_run = False):
     #Position is a list containing x_position, y_position, z_position,
     #                              camera_pitch, camera_yaw, camera_roll,
     #                              image_scale_x, image_scale_y
-    # top right is begining x> y\/
+    # top left is begining x> y\/
     
-    #rotation // rotation then scale would give better quallity, but not speed
-    #obecnie sa idealnie ustawione, dla testow
-    
-    time0 = time.time()
-    
+    # rotation
     imgBack_rotated = cv2.rotate(imgBack, cv2.ROTATE_180)
     imgLeft_rotated = cv2.rotate(imgLeft, cv2.ROTATE_90_COUNTERCLOCKWISE)
     imgRight_rotated = cv2.rotate(imgRight, cv2.ROTATE_90_CLOCKWISE)
@@ -509,84 +514,110 @@ def combine_top_view(imgBack, imgLeft, imgFront, imgRight, Back_position=None, L
         Right_position = [0,  0,  0,  \
                          0,  0,  0,     \
                              0.4, 1]
-    time1 = time.time()
-    #scale
+    
+    # scale
     imgBack_rotated = cv2.resize(imgBack_rotated, (0, 0), None, Back_position[6], Back_position[7])
     imgLeft_rotated = cv2.resize(imgLeft_rotated, (0, 0), None, Left_position[6], Left_position[7])
     imgFront = cv2.resize(imgFront, (0, 0), None, Front_position[6], Front_position[7])
     imgRight_rotated = cv2.resize(imgRight_rotated, (0, 0), None, Right_position[6], Right_position[7])
-    time2 = time.time()
-    #calculate imgCombined size
-    imgCombined_height = max(imgFront.shape[0] - Front_position[1] + imgBack_rotated.shape[0] + Back_position[1], imgLeft_rotated.shape[0], imgRight_rotated.shape[0])
-    imgCombined_width = max(imgRight_rotated.shape[1] + Right_position[0] + imgLeft_rotated.shape[1] - Left_position[0], imgFront.shape[1], imgBack_rotated.shape[1])
-    center_x = int(imgCombined_width/2)
-    center_y = int(imgCombined_height/2)
     
+    calculate_masks = False
+    if first_run is True:
+        imgCombined_height = max(imgFront.shape[0] - Front_position[1] + imgBack_rotated.shape[0] + Back_position[1], imgLeft_rotated.shape[0], imgRight_rotated.shape[0])
+        imgCombined_width = max(imgRight_rotated.shape[1] + Right_position[0] + imgLeft_rotated.shape[1] - Left_position[0], imgFront.shape[1], imgBack_rotated.shape[1])
+        center_x = int(imgCombined_width/2)
+        center_y = int(imgCombined_height/2)
+        
+        M_Back = get_translation2(center_x-int(imgBack_rotated.shape[1]/2)+Back_position[0], center_y+Back_position[1])
+        M_Left = get_translation2(center_x-int(imgLeft_rotated.shape[1])+Left_position[0], center_y-int(imgLeft_rotated.shape[0]/2)+Left_position[1])
+        M_Front = get_translation2(center_x-int(imgFront.shape[1]/2)+Front_position[0], center_y-int(imgFront.shape[0])+Front_position[1])
+        M_Right = get_translation2(center_x+Right_position[0], center_y-int(imgRight_rotated.shape[0]/2)+Right_position[1])
+        
+        
+        warpedBack = cv2.warpAffine(imgBack_rotated, M_Back, (imgCombined_width, imgCombined_height))
+        warpedLeft = cv2.warpAffine(imgLeft_rotated, M_Left, (imgCombined_width, imgCombined_height))
+        warpedFront = cv2.warpAffine(imgFront, M_Front, (imgCombined_width, imgCombined_height))
+        warpedRight = cv2.warpAffine(imgRight_rotated, M_Right, (imgCombined_width, imgCombined_height))
+        
+        calculate_masks = True
+        
+        # if False: # lepiej dac poprzednia metode, wiecej widac
+        #     # calculate imgCombined size
+        #     imgCombined_height = max(imgFront.shape[0] - Front_position[1] + imgBack_rotated.shape[0] + Back_position[1], imgLeft_rotated.shape[0], imgRight_rotated.shape[0])
+        #     imgCombined_width = max(imgRight_rotated.shape[1] + Right_position[0] + imgLeft_rotated.shape[1] - Left_position[0], imgFront.shape[1], imgBack_rotated.shape[1])
+        #     center_x = int(imgCombined_width/2)
+        #     center_y = int(imgCombined_height/2)
+            
+        #     warpedBack = numpy.zeros((imgCombined_height, imgCombined_width, 3))
+        #     warpedLeft = numpy.zeros((imgCombined_height, imgCombined_width, 3))
+        #     warpedFront = numpy.zeros((imgCombined_height, imgCombined_width, 3))
+        #     warpedRight = numpy.zeros((imgCombined_height, imgCombined_width, 3))
+            
+        #     # translation
+        #     M_Back = (center_x-int(imgBack_rotated.shape[1]/2)+Back_position[0], center_y+Back_position[1])
+        #     M_Left = (center_x-int(imgLeft_rotated.shape[1])+Left_position[0], center_y-int(imgLeft_rotated.shape[0]/2)+Left_position[1])
+        #     M_Front = (center_x-int(imgFront.shape[1]/2)+Front_position[0], center_y-int(imgFront.shape[0])+Front_position[1])
+        #     M_Right = (center_x+Right_position[0], center_y-int(imgRight_rotated.shape[0]/2)+Right_position[1])
+            
+            
+        #     y_front = center_y - imgFront.shape[0] + Front_position[1] 
+        #     y_back = center_y + imgBack_rotated.shape[0] + Back_position[1]
+        #     x_right = center_x + imgRight_rotated.shape[1] + Right_position[0]
+        #     x_left = center_x - imgLeft_rotated.shape[1] - Left_position[0]
+            
+        #     warpedBack[M_Back[1] : M_Back[1] + imgBack_rotated.shape[0], M_Back[0] + x_left : M_Back[0] + x_right, : ] = imgBack_rotated[:, x_left:x_right,:]
+        #     warpedLeft[M_Left[1] + y_front : M_Left[1] + y_back, M_Left[0] : M_Left[0] + imgLeft_rotated.shape[1], : ] = imgLeft_rotated[y_front:y_back, :,:]
+        #     warpedFront[M_Front[1] : M_Front[1] + imgFront.shape[0], M_Front[0] + x_left : M_Front[0] + x_right, : ] = imgFront[:, x_left:x_right,:]
+        #     warpedRight[M_Right[1] + y_front : M_Right[1] + + y_back, M_Right[0] : M_Right[0] + imgRight_rotated.shape[1], : ] = imgRight_rotated[y_front:y_back, :,:]
+        
+        #     calculate_masks = True
+        
+    else:
+        
+        # calculate imgCombined size
+        imgCombined_height = min(imgFront.shape[0] - Front_position[1] + imgBack_rotated.shape[0] + Back_position[1], imgLeft_rotated.shape[0], imgRight_rotated.shape[0])
+        imgCombined_width = min(imgRight_rotated.shape[1] + Right_position[0] + imgLeft_rotated.shape[1] - Left_position[0], imgFront.shape[1], imgBack_rotated.shape[1])
     
-    #translation
-    # # M_Back = get_affine_cv2((Back_position[0], Back_position[1]+center_y), Back_position[4], Back_position[6])
-    # # M_Left = get_affine_cv2((Left_position[0], Left_position[1]), Left_position[4], Left_position[6])
-    # # M_Front = get_affine_cv2((Front_position[0], Front_position[1]), Front_position[4], Front_position[6])
-    # # M_Right = get_affine_cv2((Right_position[0]+center_x, Right_position[1]), Right_position[4], Right_position[6])
-    
-    # # M_Back = get_translation2(Back_position[0], Back_position[1]+center_y)
-    # # M_Left = get_translation2(Left_position[0], Left_position[1])
-    # # M_Front = get_translation2(Front_position[0], Front_position[1])
-    # # M_Right = get_translation2(Right_position[0]+center_x, Right_position[1])
-    
-    # # M_Back = get_translation2(center_x-int(imgBack_rotated.shape[1]/2)+Back_position[0], center_y-int(imgBack_rotated.shape[0]/2)+Back_position[1])
-    # M_Back = get_translation2(center_x-int(imgBack_rotated.shape[1]/2)+Back_position[0], center_y+Back_position[1])
-    # # M_Left = get_translation2(center_x-int(imgLeft_rotated.shape[1]/2)+Left_position[0], center_y-int(imgLeft_rotated.shape[0]/2)+Left_position[1])
-    # M_Left = get_translation2(center_x-int(imgLeft_rotated.shape[1])+Left_position[0], center_y-int(imgLeft_rotated.shape[0]/2)+Left_position[1])
-    # # M_Front = get_translation2(center_x-int(imgFront.shape[1]/2)+Front_position[0], center_y-int(imgFront.shape[0]/2)+Front_position[1])
-    # M_Front = get_translation2(center_x-int(imgFront.shape[1]/2)+Front_position[0], center_y-int(imgFront.shape[0])+Front_position[1])
-    # # M_Right = get_translation2(center_x-int(imgRight_rotated.shape[1]/2)+Right_position[0], center_y-int(imgRight_rotated.shape[0]/2)+Right_position[1])
-    # M_Right = get_translation2(center_x+Right_position[0], center_y-int(imgRight_rotated.shape[0]/2)+Right_position[1])
+        center_y = int(imgCombined_height/2)
+        center_x = int(imgCombined_width/2)
+        
+        # translation
+        M_Back = (center_x-int(imgBack_rotated.shape[1]/2)+Back_position[0], center_y+Back_position[1])
+        M_Left = (center_x-int(imgLeft_rotated.shape[1])+Left_position[0], center_y-int(imgLeft_rotated.shape[0]/2)+Left_position[1])
+        M_Front = (center_x-int(imgFront.shape[1]/2)+Front_position[0], center_y-int(imgFront.shape[0])+Front_position[1],0)
+        M_Right = (center_x+Right_position[0], center_y-int(imgRight_rotated.shape[0]/2)+Right_position[1])
+        
+        warpedBack = numpy.zeros((imgCombined_height, imgCombined_width, 3))
+        warpedLeft = numpy.zeros((imgCombined_height, imgCombined_width, 3))
+        warpedFront = numpy.zeros((imgCombined_height, imgCombined_width, 3))
+        warpedRight = numpy.zeros((imgCombined_height, imgCombined_width, 3))
+        
+        warpedBack[M_Back[1] : M_Back[1] + imgBack_rotated.shape[0], :, : ] = imgBack_rotated[:, int(imgBack_rotated.shape[1]/2) - Back_position[0] - center_x : int(imgBack_rotated.shape[1]/2) - Back_position[0] + center_x , :]
+        warpedFront[M_Front[1] : M_Front[1] + imgFront.shape[0], :, : ] = imgFront[:, int(imgFront.shape[1]/2) - Front_position[0] - center_x : int(imgFront.shape[1]/2) - Front_position[0] + center_x , :]
+        warpedLeft[:, M_Left[0] : M_Left[0] + imgLeft_rotated.shape[1], : ] = imgLeft_rotated[int(imgLeft_rotated.shape[0]/2) - Left_position[1] - center_y : int(imgLeft_rotated.shape[0]/2) - Left_position[1] + center_y , :, :]
+        warpedRight[:, M_Right[0] : M_Right[0] + imgRight_rotated.shape[1], : ] = imgRight_rotated[int(imgRight_rotated.shape[0]/2) - Right_position[1] - center_y : int(imgRight_rotated.shape[0]/2) - Right_position[1] + center_y , :, :]
+        
 
-    # warpedBack = cv2.warpAffine(imgBack_rotated, M_Back, (imgCombined_width, imgCombined_height))
-    # warpedLeft = cv2.warpAffine(imgLeft_rotated, M_Left, (imgCombined_width, imgCombined_height))
-    # warpedFront = cv2.warpAffine(imgFront, M_Front, (imgCombined_width, imgCombined_height))
-    # warpedRight = cv2.warpAffine(imgRight_rotated, M_Right, (imgCombined_width, imgCombined_height))
-    
-    warpedBack = numpy.zeros((imgCombined_height, imgCombined_width, 3))
-    warpedLeft = numpy.zeros((imgCombined_height, imgCombined_width, 3))
-    warpedFront = numpy.zeros((imgCombined_height, imgCombined_width, 3))
-    warpedRight = numpy.zeros((imgCombined_height, imgCombined_width, 3))
-    
-    M_Back = (center_x-int(imgBack_rotated.shape[1]/2)+Back_position[0], center_y+Back_position[1])
-    M_Left = (center_x-int(imgLeft_rotated.shape[1])+Left_position[0], center_y-int(imgLeft_rotated.shape[0]/2)+Left_position[1])
-    M_Front = (center_x-int(imgFront.shape[1]/2)+Front_position[0], center_y-int(imgFront.shape[0])+Front_position[1])
-    M_Right = (center_x+Right_position[0], center_y-int(imgRight_rotated.shape[0]/2)+Right_position[1])
-    
-    warpedBack[M_Back[1] : M_Back[1] + imgBack_rotated.shape[0], M_Back[0] : M_Back[0] + imgBack_rotated.shape[1], : ] = imgBack_rotated
-    warpedLeft[M_Left[1] : M_Left[1] + imgLeft_rotated.shape[0], M_Left[0] : M_Left[0] + imgLeft_rotated.shape[1], : ] = imgLeft_rotated
-    warpedFront[M_Front[1] : M_Front[1] + imgFront.shape[0], M_Front[0] : M_Front[0] + imgFront.shape[1], : ] = imgFront
-    warpedRight[M_Right[1] : M_Right[1] + imgRight_rotated.shape[0], M_Right[0] : M_Right[0] + imgRight_rotated.shape[1], : ] = imgRight_rotated
-    time3 = time.time()
-    # imgCombined1 = numpy.where(warpedRight == 0, warpedLeft, warpedRight)
-    # imgCombined2 = numpy.where(warpedFront== 0, warpedBack, warpedFront)
-    # imgCombined = numpy.where(imgCombined2 == 0, imgCombined1, imgCombined2)
-    
-    return_masks = False
-    if mask_Back is None or mask_Left is None or mask_Front is None or mask_Right is None:
-        return_masks = True
-        # mask_Back = numpy.nonzero(warpedBack)
-        # mask_Left = numpy.nonzero(warpedLeft)
-        # mask_Front = numpy.nonzero(warpedFront)
-        # mask_Right = numpy.nonzero(warpedRight)
+    if return_masks is True or calculate_masks is True:
         mask_Back = (warpedBack != 0)
         mask_Left = (warpedLeft != 0)
         mask_Front = (warpedFront != 0)
         mask_Right = (warpedRight != 0)
+
     
+    # combine
     imgCombined = numpy.zeros((imgCombined_height, imgCombined_width, 3), dtype=numpy.uint8)
     imgCombined[mask_Left] = warpedLeft[mask_Left]
     imgCombined[mask_Right] = warpedRight[mask_Right]
     imgCombined[mask_Back] = warpedBack[mask_Back]
     imgCombined[mask_Front] = warpedFront[mask_Front]
-    time4 = time.time()
+    
+    # time4 = time.time()
     # cv2.imshow("imgBack_rotated", imgBack_rotated)
+    # imgFront = cv2.circle(imgFront, (x,y), radius=3, color=(0, 0, 255), thickness=-1)
+    # cv2.line(imgCombined, (0,y), (imgCombined.shape[1],y), color=(0, 0, 255), thickness=3)
     # cv2.imshow("imgCombined", imgCombined)
+    # cv2.imshow("imgCombined", cv2.resize(imgCombined, (0, 0), None, 0.8, 0.8))
     # cv2.imshow("imgLeft_rotated", imgLeft_rotated)
     # cv2.imshow("imgFront", imgFront)
     # cv2.imshow("imgRight_rotated", imgRight_rotated)
@@ -595,13 +626,14 @@ def combine_top_view(imgBack, imgLeft, imgFront, imgRight, Back_position=None, L
     # cv2.imshow("Wrap Affine Front", warpedFront)
     # cv2.imshow("Wrap Affine Right", warpedRight)
     # cv2.imshow("img combined", imgCombined0)
+    # cv2.setMouseCallback('imgCombined', click_event)
     # cv2.waitKey(0)
     # cv2.destroyAllWindows()
     # sys.exit()
-    print("Time in rotate {:.4f} scale {:.4f} trans {:.4f} combine {:.4f} total {:.4f} seconds".format(time1-time0, time2-time1, time3-time2, time4-time3, time4-time0))
+    # print("Time in rotate {:.4f} scale {:.4f} trans {:.4f} combine {:.4f} total {:.4f} seconds".format(time1-time0, time2-time1, time3-time2, time4-time3, time4-time0))
          
     if return_masks:
-        return imgCombined, mask_Back, mask_Left, mask_Front, mask_Right
+        return mask_Back, mask_Left, mask_Front, mask_Right
     else:
         return imgCombined
 
@@ -1031,7 +1063,7 @@ class Main():
             # self.Left_position = [0, -5, 0, 0, 0, 0, 0.6, 1.54]
             # self.Front_position = [0, 0, 0, 0, 0, 0, 1.52, 0.62]
             # self.Right_position = [0, -5, 0, 0, 0, 0, 0.6, 1.54]
-            _, self.mask_Back, self.mask_Left, self.mask_Front, self.mask_Right = combine_top_view(imgBack_topview, imgLeft_topview, imgFront_topview, imgRight_topview, self.Back_position, self.Left_position, self.Front_position, self.Right_position)
+            _, self.mask_Back, self.mask_Left, self.mask_Front, self.mask_Right = combine_top_view(imgBack_topview, imgLeft_topview, imgFront_topview, imgRight_topview, self.Back_position, self.Left_position, self.Front_position, self.Right_position, return_masks=True, first_run=True)
         else:
             vertical_offset_for_parallel = 320
             horizontal_offset_for_parallel = 160
@@ -1288,6 +1320,7 @@ class Main():
     def run(self, dont_stop = True):
         if self.frame_counter == 0:
             self.read_frame()
+        self.FPS = []
         while dont_stop:
             if cv2.waitKey(1) & 0xFF == ord('q') or self.frame_read_successfully is False or dont_stop is False:
                 break
@@ -1306,8 +1339,12 @@ class Main():
                 time3 = time.time()
                 
                 if SHOW_IMAGES is True:
-                    cv2.imshow("self.top_view_image", self.top_view_image)
-                    cv2.imshow("self.equirectangular_image", self.equirectangular_image)
+                    if MAKE_TOP_VIEW is True:
+                        cv2.imshow("self.top_view_image", self.top_view_image)
+                    if MAKE_EQUIRECTANGULAR_PROJECTION is True:
+                        cv2.imshow("self.equirectangular_image", self.equirectangular_image)
+                        
+                    # time.sleep(0.2)
 
                 # tymczasowy warunek stopu pętli
                 else:
@@ -1316,8 +1353,8 @@ class Main():
                                             
                 time4 = time.time()
                     
-                # print("Time in top_view {:.4f} equi {:.4f} read {:.4f} show {:.4f} total {:.4f} seconds".format(time1-time0, time2-time1, time3-time2, time4-time3, time4-time0))
-                
+                print("Time in top_view {:.4f} equi {:.4f} read {:.4f} show {:.4f} total {:.4f} seconds".format(time1-time0, time2-time1, time3-time2, time4-time3, time4-time0))
+                self.FPS.append(time4-time0)
                         
     # def get_top_view_image(self):
     #     return self.top_view_image
@@ -1331,6 +1368,7 @@ class Main():
         self.capLeft.release()
         self.capFront.release()
         self.capRight.release()
+        print("Srednio FPS {}".format(1/(sum(self.FPS)/len(self.FPS))))
 
 
 """
@@ -1345,7 +1383,7 @@ if __name__ == '__main__':
     
     MAKE_TOP_VIEW = True
     USE_PREDEFINED_TOP_VIEW_PARAMETERS = True
-    USE_PREDEFINED_COMBINE_TOP_VIEW_PARAMETERS = True # False - ale ciagle sa wstepne
+    USE_PREDEFINED_COMBINE_TOP_VIEW_PARAMETERS = False # False - ale ciagle sa wstepne
     
     MAKE_EQUIRECTANGULAR_PROJECTION = True
     
