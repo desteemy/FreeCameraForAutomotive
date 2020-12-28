@@ -7,10 +7,10 @@ Created on Wed Oct 14 15:51:40 2020
 import cv2
 assert int(cv2.__version__[0]) >= 3, 'The fisheye module requires opencv version >= 3.0.0'
 import numpy
-import os
+# import os
 import glob
 import time
-from matplotlib import pyplot as plt
+# from matplotlib import pyplot as plt
 import sys
 
  
@@ -20,6 +20,34 @@ def click_event(event, x, y, flags, params):
         print(x, ' ', y)    
     if event==cv2.EVENT_RBUTTONDOWN:
         print(x, ' ', y)
+
+  
+def create_maps_using_homography_matrix(source_image, homography_matrix, invert_matrix = False, destination_image = None):
+    """creates map to convert source_image to destination_image using
+    destination_image = cv2.remap(source_image, map_x, map_y, cv2.INTER_LINEAR)
+    https://stackoverflow.com/questions/46520123/how-do-i-use-opencvs-remap-function"""
+    # ground truth homography from destination_image to source_image
+    if invert_matrix is True:
+        _, homography_matrix = cv2.invert(homography_matrix)
+        
+    if destination_image is None:
+        destination_image = cv2.warpPerspective(source_image, homography_matrix, source_image.shape[:2][::-1])
+
+    # create indices of the destination image and linearize them
+    height, width = destination_image.shape[:2]
+    indy, indx = numpy.indices((height, width), dtype=numpy.float32)
+    linearized_homeography_indices = numpy.array([indx.ravel(), indy.ravel(), numpy.ones_like(indx).ravel()])
+    
+    # warp the coordinates of source_image to those of destination_image
+    map_ind = homography_matrix.dot(linearized_homeography_indices)
+    map_x, map_y = map_ind[:-1]/map_ind[-1]  # ensure homogeneity
+    map_x = map_x.reshape(height, width).astype(numpy.float32)
+    map_y = map_y.reshape(height, width).astype(numpy.float32)
+
+    # convert maps to fixed point numbers
+    map_x_fp, map_y_fp = cv2.convertMaps(map_x, map_y, cv2.CV_32FC1)
+
+    return map_x_fp, map_y_fp
 
 def find_parameters_to_make_top_view(img):
     def emptyFunction(newValue):
@@ -36,12 +64,11 @@ def find_parameters_to_make_top_view(img):
         shrinking_parameter = cv2.getTrackbarPos("Shrinking parameter", "TrackBars")
         crop_top = cv2.getTrackbarPos("Crop top", "TrackBars")
         crop_bottom = cv2.getTrackbarPos("Crop bottom", "TrackBars")
+        cv2.setTrackbarMax("Crop top", "TrackBars", int(img.shape[0]-crop_bottom-5))
+        cv2.setTrackbarMax("Crop bottom", "TrackBars", int(img.shape[0]-crop_top-5))
         
-        cv2.setTrackbarMax("Crop top", "TrackBars", int(img.shape[0]-crop_top-15))
-        cv2.setTrackbarMax("Crop bottom", "TrackBars", int(img.shape[0]-crop_bottom-15))
-        
-        crop_top = min(int(img.shape[0]-crop_top-15), crop_top)
-        crop_bottom = min(int(img.shape[0]-crop_bottom-15), crop_bottom)
+        crop_top = min(int(img.shape[0]-crop_bottom-5), crop_top)
+        crop_bottom = min(int(img.shape[0]-crop_top-5), crop_bottom)
         cv2.setTrackbarPos("Crop top", "TrackBars", crop_top)
         cv2.setTrackbarPos("Crop bottom", "TrackBars", crop_bottom)
         
@@ -52,7 +79,7 @@ def find_parameters_to_make_top_view(img):
         points_destination = numpy.array([[0,0], [width,0], [shrinking_parameter,heigth], [width-shrinking_parameter,heigth]], dtype=numpy.float32)
         
         #show images
-        top_view_image = make_top_view(img2, points_destination=points_destination)
+        top_view_image, map_x, map_y = make_top_view(img2, points_destination=points_destination, return_maps=True)
         cv2.imshow("stackedTwoImages", top_view_image)
         
         keyInput = cv2.waitKey(33)
@@ -66,9 +93,9 @@ def find_parameters_to_make_top_view(img):
     cv2.destroyWindow("TrackBars")
     cv2.destroyWindow("stackedTwoImages")
     
-    return shrinking_parameter, crop_top, crop_bottom
+    return shrinking_parameter, crop_top, crop_bottom, map_x, map_y
 
-def make_top_view(img, points_source = None, points_destination = None, shrinking_parameter = None, crop_top = None, crop_bottom = None):
+def make_top_view(img, points_source = None, points_destination = None, shrinking_parameter = None, crop_top = None, crop_bottom = None, map_x = None, map_y = None, return_maps=False):
     # start_time = time.time()
     if shrinking_parameter is None and crop_top is None and crop_bottom is None:
         # top view from points
@@ -86,7 +113,10 @@ def make_top_view(img, points_source = None, points_destination = None, shrinkin
             points_destination = numpy.array([[448,609], [580,609], [580,741], [448,741]], dtype=numpy.float32) # jakies kompletnie losowe tera
             
         homography_matrix = cv2.getPerspectiveTransform(points_source, points_destination)
-        result = cv2.warpPerspective(img, homography_matrix, img.shape[:2][::-1])
+        if map_x is None or map_y is None:
+            map_x, map_y = create_maps_using_homography_matrix(img, homography_matrix, invert_matrix=True)
+        result = cv2.remap(img, map_x, map_y, cv2.INTER_LINEAR, cv2.CV_32FC1)
+        #result = cv2.warpPerspective(img, homography_matrix, img.shape[:2][::-1])
     else:
         # top view from parameters
         heigth_original, width = img.shape[:2]
@@ -96,7 +126,10 @@ def make_top_view(img, points_source = None, points_destination = None, shrinkin
         points_destination = numpy.array([[0,0], [width,0], [shrinking_parameter,heigth], [width-shrinking_parameter,heigth]], dtype=numpy.float32)
         
         homography_matrix = cv2.getPerspectiveTransform(points_source, points_destination)
-        result = cv2.warpPerspective(img2, homography_matrix, img2.shape[:2][::-1])
+        if map_x is None or map_y is None:
+            map_x, map_y = create_maps_using_homography_matrix(img2, homography_matrix, invert_matrix=True)
+        result = cv2.remap(img2, map_x, map_y, cv2.INTER_LINEAR, cv2.CV_32FC1)
+        # result = cv2.warpPerspective(img2, homography_matrix, img2.shape[:2][::-1])
             
     # display (or save) images
     # cv2.imshow('image', img)
@@ -107,8 +140,10 @@ def make_top_view(img, points_source = None, points_destination = None, shrinkin
     # sys.exit()
     # duration1 = time.time()
     # print("Time in make_top_view {:.4f} {:.4f} seconds".format(duration1-start_time, 1.0))
-   
-    return result
+    if return_maps is True:
+        return result, map_x, map_y
+    else:
+        return result
 
 def getCameraParameters_using_omnidirectional(images_paths):
     '''https://docs.opencv.org/3.4/dd/d12/tutorial_omnidir_calib_main.html
@@ -683,7 +718,11 @@ def buildmap(Ws, Hs, Wd, Hd, fov=180.0):
 
     ymap = Hd / 2.0 - y_fish
     xmap = Wd / 2.0 + x_fish
-    return xmap, ymap
+    
+    # convert maps to fixed point numbers
+    xmap_fp, ymap_fp = cv2.convertMaps(xmap, ymap, cv2.CV_32FC1)
+    
+    return xmap_fp, ymap_fp
 
 
 def stack_two_images_with_offsets(img1,img2, offset1, offset2):
@@ -1047,13 +1086,14 @@ class Main():
             # shrinking_parameter = 290
             # crop_top = 350
             # crop_bottom = 0
+            _, self.top_view_map_x, self.top_view_map_y = make_top_view(imgBack_unwarped0, shrinking_parameter=self.shrinking_parameter, crop_top=self.crop_top, crop_bottom=self.crop_bottom, return_maps=True)
         else:
-            self.shrinking_parameter, self.crop_top, self.crop_bottom = find_parameters_to_make_top_view(imgBack_unwarped0)
+            self.shrinking_parameter, self.crop_top, self.crop_bottom, self.top_view_map_x, self.top_view_map_y = find_parameters_to_make_top_view(imgBack_unwarped0)
  
-        imgBack_topview = make_top_view(imgBack_unwarped0, shrinking_parameter=self.shrinking_parameter, crop_top=self.crop_top, crop_bottom=self.crop_bottom)
-        imgLeft_topview = make_top_view(imgLeft_unwarped0, shrinking_parameter=self.shrinking_parameter, crop_top=self.crop_top, crop_bottom=self.crop_bottom)
-        imgFront_topview = make_top_view(imgFront_unwarped0, shrinking_parameter=self.shrinking_parameter, crop_top=self.crop_top, crop_bottom=self.crop_bottom)
-        imgRight_topview = make_top_view(imgRight_unwarped0, shrinking_parameter=self.shrinking_parameter, crop_top=self.crop_top, crop_bottom=self.crop_bottom)
+        imgBack_topview = make_top_view(imgBack_unwarped0, shrinking_parameter=self.shrinking_parameter, crop_top=self.crop_top, crop_bottom=self.crop_bottom, map_x=self.top_view_map_x, map_y=self.top_view_map_y)
+        imgLeft_topview = make_top_view(imgLeft_unwarped0, shrinking_parameter=self.shrinking_parameter, crop_top=self.crop_top, crop_bottom=self.crop_bottom, map_x=self.top_view_map_x, map_y=self.top_view_map_y)
+        imgFront_topview = make_top_view(imgFront_unwarped0, shrinking_parameter=self.shrinking_parameter, crop_top=self.crop_top, crop_bottom=self.crop_bottom, map_x=self.top_view_map_x, map_y=self.top_view_map_y)
+        imgRight_topview = make_top_view(imgRight_unwarped0, shrinking_parameter=self.shrinking_parameter, crop_top=self.crop_top, crop_bottom=self.crop_bottom, map_x=self.top_view_map_x, map_y=self.top_view_map_y)
         # img4 = numpy.concatenate((imgBack_topview, imgLeft_topview, imgFront_topview, imgRight_topview), axis=1)
         # if SHOW_IMAGES is True:
         #     cv2.imshow("Unwarped by undistort in line", cv2.resize(img3, (0, 0), None, 0.5, 0.5))
@@ -1123,11 +1163,11 @@ class Main():
         self.W_remap = 720
         self.H = 640
         self.FOV = 180
-        self.xmap, self.ymap = buildmap(Ws=self.W_remap, Hs=self.H, Wd=640, Hd=640, fov=self.FOV)
-        imgBack_unwarped = cv2.remap(self.imgBack, self.xmap, self.ymap, cv2.INTER_LINEAR)
-        imgLeft_unwarped = cv2.remap(self.imgLeft, self.xmap, self.ymap, cv2.INTER_LINEAR)
-        imgFront_unwarped = cv2.remap(self.imgFront, self.xmap, self.ymap, cv2.INTER_LINEAR)
-        imgRight_unwarped = cv2.remap(self.imgRight, self.xmap, self.ymap, cv2.INTER_LINEAR)
+        self.equirectangular_xmap, self.equirectangular_ymap = buildmap(Ws=self.W_remap, Hs=self.H, Wd=640, Hd=640, fov=self.FOV)
+        imgBack_unwarped = cv2.remap(self.imgBack, self.equirectangular_xmap, self.equirectangular_ymap, cv2.INTER_LINEAR, cv2.CV_32FC1)
+        imgLeft_unwarped = cv2.remap(self.imgLeft, self.equirectangular_xmap, self.equirectangular_ymap, cv2.INTER_LINEAR, cv2.CV_32FC1)
+        imgFront_unwarped = cv2.remap(self.imgFront, self.equirectangular_xmap, self.equirectangular_ymap, cv2.INTER_LINEAR, cv2.CV_32FC1)
+        imgRight_unwarped = cv2.remap(self.imgRight, self.equirectangular_xmap, self.equirectangular_ymap, cv2.INTER_LINEAR, cv2.CV_32FC1)
     
         # img4 = numpy.concatenate((imgBack_unwarped, imgLeft_unwarped, imgFront_unwarped, imgRight_unwarped), axis=1)
         
@@ -1252,10 +1292,10 @@ class Main():
         
         # img3 = numpy.concatenate((imgBack_unwarped0, imgLeft_unwarped0, imgFront_unwarped0, imgRight_unwarped0), axis=1)
         # time1 = time.time()
-        imgBack_topview = make_top_view(imgBack_unwarped0, shrinking_parameter=self.shrinking_parameter, crop_top=self.crop_top, crop_bottom=self.crop_bottom)
-        imgLeft_topview = make_top_view(imgLeft_unwarped0, shrinking_parameter=self.shrinking_parameter, crop_top=self.crop_top, crop_bottom=self.crop_bottom)
-        imgFront_topview = make_top_view(imgFront_unwarped0, shrinking_parameter=self.shrinking_parameter, crop_top=self.crop_top, crop_bottom=self.crop_bottom)
-        imgRight_topview = make_top_view(imgRight_unwarped0, shrinking_parameter=self.shrinking_parameter, crop_top=self.crop_top, crop_bottom=self.crop_bottom)
+        imgBack_topview = make_top_view(imgBack_unwarped0, shrinking_parameter=self.shrinking_parameter, crop_top=self.crop_top, crop_bottom=self.crop_bottom, map_x=self.top_view_map_x, map_y=self.top_view_map_y)
+        imgLeft_topview = make_top_view(imgLeft_unwarped0, shrinking_parameter=self.shrinking_parameter, crop_top=self.crop_top, crop_bottom=self.crop_bottom, map_x=self.top_view_map_x, map_y=self.top_view_map_y)
+        imgFront_topview = make_top_view(imgFront_unwarped0, shrinking_parameter=self.shrinking_parameter, crop_top=self.crop_top, crop_bottom=self.crop_bottom, map_x=self.top_view_map_x, map_y=self.top_view_map_y)
+        imgRight_topview = make_top_view(imgRight_unwarped0, shrinking_parameter=self.shrinking_parameter, crop_top=self.crop_top, crop_bottom=self.crop_bottom, map_x=self.top_view_map_x, map_y=self.top_view_map_y)
 
         # time2 = time.time()
         # combined_top_view = combine_top_view(imgBack_topview, imgLeft_topview, imgFront_topview, imgRight_topview, self.Back_position, self.Left_position, self.Front_position, self.Right_position, self.mask_Back, self.mask_Left, self.mask_Front, self.mask_Right)
@@ -1267,7 +1307,7 @@ class Main():
         # self.top_view_image = combined_top_view[min(height_in_stiched):max(height_in_stiched), min(width_in_stiched):max(width_in_stiched),:]
         # time4 = time.time()
             
-        # print("Time in undistort {:.4f} make {:.4f} combine {:.4f} total {:.4f} seconds".format(time1-time0, time2-time1, time3-time2, time3-time0))
+        # print("Time in top_view {:.4f} make {:.4f} combine {:.4f} total {:.4f} seconds".format(time1-time0, time2-time1, time3-time2, time3-time0))
                 
         
         # cv2.imwrite("prezentacja/imgBack_unwarped0.jpg", imgBack_unwarped0)
@@ -1284,10 +1324,10 @@ class Main():
         
  
     def equirectangular_projection(self):
-        imgBack_unwarped = cv2.remap(self.imgBack, self.xmap, self.ymap, cv2.INTER_LINEAR)
-        imgLeft_unwarped = cv2.remap(self.imgLeft, self.xmap, self.ymap, cv2.INTER_LINEAR)
-        imgFront_unwarped = cv2.remap(self.imgFront, self.xmap, self.ymap, cv2.INTER_LINEAR)
-        imgRight_unwarped = cv2.remap(self.imgRight, self.xmap, self.ymap, cv2.INTER_LINEAR)
+        imgBack_unwarped = cv2.remap(self.imgBack, self.equirectangular_xmap, self.equirectangular_ymap, cv2.INTER_LINEAR, cv2.CV_32FC1)
+        imgLeft_unwarped = cv2.remap(self.imgLeft, self.equirectangular_xmap, self.equirectangular_ymap, cv2.INTER_LINEAR, cv2.CV_32FC1)
+        imgFront_unwarped = cv2.remap(self.imgFront, self.equirectangular_xmap, self.equirectangular_ymap, cv2.INTER_LINEAR, cv2.CV_32FC1)
+        imgRight_unwarped = cv2.remap(self.imgRight, self.equirectangular_xmap, self.equirectangular_ymap, cv2.INTER_LINEAR, cv2.CV_32FC1)
         
         if USE_EQUIRECTANGULAR_METHOD is True:
             self.equirectangular_image = numpy.concatenate((
@@ -1368,9 +1408,10 @@ class Main():
                                             
                 time4 = time.time()
                     
-                print("Time in top_view {:.4f} equi {:.4f} read {:.4f} show {:.4f} total {:.4f} seconds".format(time1-time0, time2-time1, time3-time2, time4-time3, time4-time0))
+                # print("Time in top_view {:.4f} equi {:.4f} read {:.4f} show {:.4f} total {:.4f} seconds".format(time1-time0, time2-time1, time3-time2, time4-time3, time4-time0))
                 self.FPS.append(time4-time0)
-                        
+                
+                
     # def get_top_view_image(self):
     #     return self.top_view_image
     
@@ -1383,7 +1424,7 @@ class Main():
         self.capLeft.release()
         self.capFront.release()
         self.capRight.release()
-        print("Srednio FPS {}".format(1/(sum(self.FPS)/len(self.FPS))))
+        print("Average FPS {}".format(1/(sum(self.FPS)/len(self.FPS))))
 
 
 """
