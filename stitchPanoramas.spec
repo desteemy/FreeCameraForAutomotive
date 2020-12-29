@@ -5,7 +5,7 @@ block_cipher = None
 
 a = Analysis(['stitchPanoramas.py'],
              pathex=['C:\\GitFiles\\Python\\InzSystemKamer\\PythonCV2v1'],
-             binaries=[],
+             binaries=[('C:\\Users\\Dawid\\Anaconda3\\pkgs\\libopencv-3.4.1-h875b8b8_3\\Library\\bin\\opencv_ffmpeg341_64.dll', '.')],
              datas=[],
              hiddenimports=[],
              hookspath=[],
@@ -15,7 +15,6 @@ a = Analysis(['stitchPanoramas.py'],
              win_private_assemblies=False,
              cipher=block_cipher,
              noarchive=False)
-a.binaries += ('C:\\Users\\Dawid\\Anaconda3\\pkgs\\libopencv-3.4.1-h875b8b8_3\\Library\\bin\\opencv_ffmpeg341_64.dll', '.')
 a.datas +=Tree(".\\dataset5", prefix="dataset5")
 a.datas +=Tree(".\\260-290mp4", prefix="260-290mp4")
 
