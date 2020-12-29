@@ -7,12 +7,20 @@ Created on Wed Oct 14 15:51:40 2020
 import cv2
 assert int(cv2.__version__[0]) >= 3, 'The fisheye module requires opencv version >= 3.0.0'
 import numpy
-# import os
+import os
 import glob
 import time
 # from matplotlib import pyplot as plt
 import sys
 
+def resource_path(relative_path):
+    try:
+        base_path = sys._MEIPASS
+    except Exception:
+        base_path = os.path.abspath(".")
+
+    return os.path.join(base_path, relative_path)
+    
  
 def click_event(event, x, y, flags, params):
     """function to display the coordinates of the points clicked on the image"""
@@ -162,7 +170,7 @@ def getCameraParameters_using_omnidirectional(images_paths):
     imgpoints = [] # 2d points in image plane.
     i=0
     for fname in images_paths:
-        img = cv2.imread(fname)
+        img = cv2.imread(resource_path(fname))
         print("Analyzing " + str(i))
         if _img_shape == None:
             _img_shape = img.shape[:2]
@@ -173,7 +181,7 @@ def getCameraParameters_using_omnidirectional(images_paths):
         ret, corners = cv2.findChessboardCorners(gray, CHECKERBOARD, cv2.CALIB_CB_ADAPTIVE_THRESH+cv2.CALIB_CB_FAST_CHECK+cv2.CALIB_CB_NORMALIZE_IMAGE)
         # If found, add object points, image points (after refining them)
         if ret == True:
-            print("Founded in " + str(i))
+            print("Found in " + str(i))
             objpoints.append(objp)
             cv2.cornerSubPix(gray,corners,(3,3),(-1,-1),subpix_criteria)
             imgpoints.append(corners)
@@ -204,7 +212,7 @@ def getCameraParameters_using_omnidirectional(images_paths):
     print("D=numpy.array(" + str(D.tolist()) + ")")
      
     print("cv::omnidir::undistortImage")
-    distorted = cv2.imread("dataset5/0023.jpg")
+    distorted = cv2.imread(resource_path("dataset5\\0023.jpg"))
     undistorted = distorted
     # Knew = numpy.zeros((3, 3))
     Knew = numpy.array([[_img_shape[1]/4, 0, _img_shape[1]/2],
@@ -221,8 +229,8 @@ def getCameraParameters_using_omnidirectional(images_paths):
     undistorted_img = cv2.remap(img, map1, map2, interpolation=cv2.INTER_LINEAR, borderMode=cv2.BORDER_CONSTANT)
    
     
-    cv2.imshow("distorted elo", distorted)
-    cv2.imshow("undistorted elo", undistorted)
+    cv2.imshow("distorted", distorted)
+    cv2.imshow("undistorted", undistorted)
     cv2.imshow("undistorted_img", undistorted_img)
     cv2.waitKey(0)
     cv2.destroyAllWindows()
@@ -241,7 +249,7 @@ def getCameraParameters(images_paths):
     imgpoints = [] # 2d points in image plane.
     i=0
     for fname in images_paths:
-        img = cv2.imread(fname)
+        img = cv2.imread(resource_path(fname))
         print("Analyzing " + str(i))
         if _img_shape == None:
             _img_shape = img.shape[:2]
@@ -252,7 +260,7 @@ def getCameraParameters(images_paths):
         ret, corners = cv2.findChessboardCorners(gray, CHECKERBOARD, cv2.CALIB_CB_ADAPTIVE_THRESH+cv2.CALIB_CB_FAST_CHECK+cv2.CALIB_CB_NORMALIZE_IMAGE)
         # If found, add object points, image points (after refining them)
         if ret == True:
-            print("Founded in " + str(i))
+            print("Found in " + str(i))
             objpoints.append(objp)
             cv2.cornerSubPix(gray,corners,(3,3),(-1,-1),subpix_criteria)
             imgpoints.append(corners)
@@ -1015,10 +1023,18 @@ class Main():
             
         
     def load_cameras(self):
-        self.capBack = cv2.VideoCapture("260-290mp4/Back_0260-0290.mp4")
-        self.capLeft = cv2.VideoCapture("260-290mp4/Left_0260-0290.mp4")
-        self.capFront = cv2.VideoCapture("260-290mp4/Front_0260-0290.mp4")
-        self.capRight = cv2.VideoCapture("260-290mp4/Right_0260-0290.mp4")
+        self.capBack = cv2.VideoCapture(resource_path('260-290mp4\\Back_0260-0290.mp4'))
+        self.capLeft = cv2.VideoCapture(resource_path('260-290mp4\\Left_0260-0290.mp4'))
+        self.capFront = cv2.VideoCapture(resource_path('260-290mp4\\Front_0260-0290.mp4'))
+        self.capRight = cv2.VideoCapture(resource_path('260-290mp4\\Right_0260-0290.mp4'))
+        
+        if cv2.VideoCapture.isOpened(self.capBack) is False or  \
+            cv2.VideoCapture.isOpened(self.capLeft) is False or \
+            cv2.VideoCapture.isOpened(self.capFront) is False or \
+            cv2.VideoCapture.isOpened(self.capRight) is False:
+        
+                raise SystemExit("Camera",resource_path('260-290mp4\\Back_0260-0290.mp4'), " not found")
+                
         
         
     def calibrate_camera(self):
@@ -1031,17 +1047,17 @@ class Main():
             self.DIM =(640, 640)
         elif ONLY_VALID_IMAGES_FOR_CAMERA_CALIBRATION is True:
             calibrationDirectory = only_valid_images_for_calibration
-            self.K, self.D, self.DIM = getCameraParameters_using_omnidirectional(calibrationDirectory)
+            # self.K, self.D, self.DIM = getCameraParameters_using_omnidirectional(calibrationDirectory)
             self.K, self.D, self.DIM = getCameraParameters(calibrationDirectory)
         else:
-            calibrationDirectory = 'dataset5/*.jpg'
+            calibrationDirectory = 'dataset5\\*.jpg'
             calibrationDirectory = glob.glob(calibrationDirectory)
-            self.K, self.D, self.DIM = getCameraParameters_using_omnidirectional(calibrationDirectory)
+            # self.K, self.D, self.DIM = getCameraParameters_using_omnidirectional(calibrationDirectory)
             self.K, self.D, self.DIM = getCameraParameters(calibrationDirectory)
         
         
         # Test undistort methods
-        # testimg_bird_eye = cv2.imread("dataset5/0023.jpg")
+        # testimg_bird_eye = cv2.imread(resource_path("dataset5\\0023.jpg"))
         
         # undistorted_testimg3 = undistort(testimg_bird_eye, K, D, DIM)
         # undistorted_testimg2 = undistort2(testimg_bird_eye, K, D, DIM, balance=0.5, dim2=(840,840), dim3=(840,840))
@@ -1265,6 +1281,7 @@ class Main():
             self.frame_counter += 1
         else:
             # DO ZMIANY
+            raise SystemExit("Reading frame failed in", resource_path('260-290mp4\\Back_0260-0290.mp4'))
             self.frame_read_successfully = False
             
         if CAMERA_READ_FROM_FILE is True:
@@ -1424,7 +1441,8 @@ class Main():
         self.capLeft.release()
         self.capFront.release()
         self.capRight.release()
-        print("Average FPS {}".format(1/(sum(self.FPS)/len(self.FPS))))
+        if hasattr(self, 'FPS'):
+            print("Average FPS {}".format(1/(sum(self.FPS)/len(self.FPS))))
 
 
 """
@@ -1453,12 +1471,12 @@ if __name__ == '__main__':
     
     if ONLY_VALID_IMAGES_FOR_CAMERA_CALIBRATION is True:
         only_valid_images_for_calibration = []
-        only_valid_images_for_calibration.append("dataset5/0009.jpg")
-        only_valid_images_for_calibration.append("dataset5/0010.jpg")
-        only_valid_images_for_calibration.append("dataset5/0023.jpg")
-        only_valid_images_for_calibration.append("dataset5/0032.jpg")
-        only_valid_images_for_calibration.append("dataset5/0058.jpg")
-        only_valid_images_for_calibration.append("dataset5/0067.jpg")
+        only_valid_images_for_calibration.append("dataset5\\0009.jpg")
+        only_valid_images_for_calibration.append("dataset5\\0010.jpg")
+        only_valid_images_for_calibration.append("dataset5\\0023.jpg")
+        only_valid_images_for_calibration.append("dataset5\\0032.jpg")
+        only_valid_images_for_calibration.append("dataset5\\0058.jpg")
+        only_valid_images_for_calibration.append("dataset5\\0067.jpg")
     
     main = Main()
     # main.top_view()
@@ -1475,8 +1493,8 @@ if __name__ == '__main__':
     #           "\nmessage: \t", sys.exc_info()[1])
 
 # #test laczenia zdjec
-# testowe0 = cv2.imread("zdjTestPanoramy2.png")
-# testowe1 = cv2.imread("zdjTestPanoramy3.png")
+# testowe0 = cv2.imread(resource_path("zdjTestPanoramy2.png"))
+# testowe1 = cv2.imread(resource_path("zdjTestPanoramy3.png"))
 
 # stitched_using_orb, parameters = stitch_two_images_using_ORB(cv2.resize(testowe0, (0, 0), None, 0.5, 0.5), cv2.resize(testowe1, (0, 0), None, 0.5, 0.5))
 # stitched_using_orb_and_parameters, parameters2 = stitch_two_images_using_ORB(cv2.resize(testowe0, (0, 0), None, 0.5, 0.5), cv2.resize(testowe1, (0, 0), None, 0.5, 0.5), parameters=parameters)
@@ -1488,7 +1506,7 @@ if __name__ == '__main__':
 # #end test laczenia zdjec
 
 # #test przeksztalcenia aficznego
-# img = cv2.imread("zdjTestPanoramy2.png")
+# img = cv2.imread(resource_path("zdjTestPanoramy2.png"))
 # # A2 = get_affine_cv2((0, 0), 180*numpy.pi/180, 0.5, (int(img.shape[1]/2),int(img.shape[0]/2)))
 # A2 = get_affine_cv((0, 0), 1, 0.5)
 # warped = cv2.warpAffine(img, A2, (img.shape[:2][::-1]))
@@ -1499,10 +1517,10 @@ if __name__ == '__main__':
 # cv2.destroyAllWindows()
 
 # #test top view
-# imgBack = cv2.imread("System_Calibration-3/0002.jpg")
-# imgLeft = cv2.imread("System_Calibration-3/0003.jpg")
-# imgFront = cv2.imread("System_Calibration-3/0000.jpg")
-# imgRight = cv2.imread("System_Calibration-3/0001.jpg")
+# imgBack = cv2.imread(resource_path("System_Calibration-3/0002.jpg"))
+# imgLeft = cv2.imread(resource_path("System_Calibration-3/0003.jpg"))
+# imgFront = cv2.imread(resource_path("System_Calibration-3/0000.jpg"))
+# imgRight = cv2.imread(resource_path("System_Calibration-3/0001.jpg"))
 
 # K = numpy.array([[219.85077387813544, 0.0, 321.8468539428703], [0.0, 219.81115217715458, 321.26199300586325], [0.0, 0.0, 1.0]])
 # D = numpy.array([[-0.02236163741176025], [-0.01566355538478192], [0.0066695817100666304], [-0.0009867103996664935]])
