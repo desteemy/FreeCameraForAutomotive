@@ -128,16 +128,16 @@ def make_top_view(img, points_source = None, points_destination = None, shrinkin
     else:
         # top view from parameters
         heigth_original, width = img.shape[:2]
-        img2=img[crop_top:img.shape[0]-crop_bottom,:,:]
+        # img2=img[crop_top:img.shape[0]-crop_bottom,:,:]
         heigth = heigth_original-crop_top-crop_bottom
         points_source = numpy.array([[0,0], [width,0], [0,heigth], [width,heigth]], dtype=numpy.float32)
         points_destination = numpy.array([[0,0], [width,0], [shrinking_parameter,heigth], [width-shrinking_parameter,heigth]], dtype=numpy.float32)
         
         homography_matrix = cv2.getPerspectiveTransform(points_source, points_destination)
         if map_x is None or map_y is None:
-            map_x, map_y = create_maps_using_homography_matrix(img2, homography_matrix, invert_matrix=True)
-        result = cv2.remap(img2, map_x, map_y, cv2.INTER_LINEAR, cv2.CV_32FC1)
-        # result = cv2.warpPerspective(img2, homography_matrix, img2.shape[:2][::-1])
+            map_x, map_y = create_maps_using_homography_matrix(img[crop_top:img.shape[0]-crop_bottom,:,:], homography_matrix, invert_matrix=True)
+        result = cv2.remap(img[crop_top:img.shape[0]-crop_bottom,:,:], map_x, map_y, cv2.INTER_LINEAR, cv2.CV_32FC1)
+        # result = cv2.warpPerspective(img[crop_top:img.shape[0]-crop_bottom,:,:], homography_matrix, (img.shape[1], heigth))
             
     # display (or save) images
     # cv2.imshow('image', img)
@@ -662,10 +662,10 @@ def combine_top_view(imgBack, imgLeft, imgFront, imgRight, Back_position=None, L
     
     # combine
     imgCombined = numpy.zeros((imgCombined_height, imgCombined_width, 3), dtype=numpy.uint8)
-    imgCombined[mask_Left] = warpedLeft[mask_Left]
-    imgCombined[mask_Right] = warpedRight[mask_Right]
     imgCombined[mask_Back] = warpedBack[mask_Back]
     imgCombined[mask_Front] = warpedFront[mask_Front]
+    imgCombined[mask_Left] = warpedLeft[mask_Left]
+    imgCombined[mask_Right] = warpedRight[mask_Right]
     
     # time4 = time.time()
     # cv2.imshow("imgBack_rotated", imgBack_rotated)
