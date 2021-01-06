@@ -3,7 +3,7 @@
 block_cipher = None
 
 
-a = Analysis(['stitchPanoramas.py'],
+a = Analysis(['Video_Processor.py'],
              pathex=['C:\\GitFiles\\Python\\InzSystemKamer\\PythonCV2v1'],
              binaries=[('C:\\Users\\Dawid\\Anaconda3\\pkgs\\libopencv-3.4.1-h875b8b8_3\\Library\\bin\\opencv_ffmpeg341_64.dll', '.')],
              datas=[],
@@ -24,7 +24,7 @@ exe = EXE(pyz,
           a.scripts,
           [],
           exclude_binaries=True,
-          name='stitchPanoramas',
+          name='Video_Processor',
           debug=False,
           bootloader_ignore_signals=False,
           strip=False,
@@ -37,4 +37,4 @@ coll = COLLECT(exe,
                strip=False,
                upx=True,
                upx_exclude=[],
-               name='stitchPanoramas')
+               name='Video_Processor')
