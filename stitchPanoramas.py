@@ -270,7 +270,7 @@ def getCameraParameters(images_paths):
     D = numpy.zeros((4, 1))
     rvecs = [numpy.zeros((1, 1, 3), dtype=numpy.float64) for i in range(N_OK)]
     tvecs = [numpy.zeros((1, 1, 3), dtype=numpy.float64) for i in range(N_OK)]
-    rms, _, _, _, _ = \
+    rms, K, D, _, _ = \
         cv2.fisheye.calibrate(
             objpoints,
             imgpoints,
@@ -1006,7 +1006,7 @@ def stitch_two_images_using_ORB(img1,img2, parameters = None): # there is also b
     return result, parameters
 
 
-class Main():
+class Video_Processor():
 
     def __init__(self):
         self.K = None
@@ -1027,6 +1027,10 @@ class Main():
         self.capLeft = cv2.VideoCapture(resource_path('260-290mp4\\Left_0260-0290.mp4'))
         self.capFront = cv2.VideoCapture(resource_path('260-290mp4\\Front_0260-0290.mp4'))
         self.capRight = cv2.VideoCapture(resource_path('260-290mp4\\Right_0260-0290.mp4'))
+        # self.capBack = cv2.VideoCapture(0)
+        # self.capLeft = cv2.VideoCapture(1)
+        # self.capFront = cv2.VideoCapture(2)
+        # self.capRight = cv2.VideoCapture(3)
         
         if cv2.VideoCapture.isOpened(self.capBack) is False or  \
             cv2.VideoCapture.isOpened(self.capLeft) is False or \
@@ -1215,13 +1219,13 @@ class Main():
             # concatenate images - stack_two_images_with_offsets - is only for two images, here will be 4, using it 3 times is stupid
             #   then make stake 4 images? more code, but better readability
             # WRITE SIMILAR USING ORB?
-            self.equirectangular_image = numpy.concatenate((
-                imgRight_unwarped[:,int(self.W_remap/2):-self.offsetRightBack1,:],
-                imgBack_unwarped[:,self.offsetRightBack2:-self.offsetBackLeft1,:],
-                imgLeft_unwarped[:,self.offsetBackLeft2:-self.offsetLeftFront1,:],
-                imgFront_unwarped[:,self.offsetLeftFront2:-self.offsetFrontRight1,:],
-                imgRight_unwarped[:,self.offsetFrontRight2:int(self.W_remap/2),:]
-                ), axis=1)
+            # self.equirectangular_image = numpy.concatenate((
+            #     imgRight_unwarped[:,int(self.W_remap/2):-self.offsetRightBack1,:],
+            #     imgBack_unwarped[:,self.offsetRightBack2:-self.offsetBackLeft1,:],
+            #     imgLeft_unwarped[:,self.offsetBackLeft2:-self.offsetLeftFront1,:],
+            #     imgFront_unwarped[:,self.offsetLeftFront2:-self.offsetFrontRight1,:],
+            #     imgRight_unwarped[:,self.offsetFrontRight2:int(self.W_remap/2),:]
+            #     ), axis=1)
         
         elif USE_ORB_IN_EQUIRECTANGULAR_METHOD is True:
         
@@ -1457,7 +1461,7 @@ if __name__ == '__main__':
     
     MAKE_TOP_VIEW = True
     USE_PREDEFINED_TOP_VIEW_PARAMETERS = True
-    USE_PREDEFINED_COMBINE_TOP_VIEW_PARAMETERS = True # False - ale ciagle sa wstepne
+    USE_PREDEFINED_COMBINE_TOP_VIEW_PARAMETERS = True  # False - ale ciagle sa wstepne
     
     MAKE_EQUIRECTANGULAR_PROJECTION = True
     
@@ -1478,13 +1482,13 @@ if __name__ == '__main__':
         only_valid_images_for_calibration.append("dataset5\\0058.jpg")
         only_valid_images_for_calibration.append("dataset5\\0067.jpg")
     
-    main = Main()
-    # main.top_view()
-    # main.equirectangular_projection()
-    main.run(dont_stop = True)
-    del main
+    Video_Processor = Video_Processor()
+    # Video_Processor.top_view()
+    # Video_Processor.equirectangular_projection()
+    Video_Processor.run(dont_stop = True)
+    del Video_Processor
     # try:
-    #     main()
+    #     Video_Processor()
     # except Exception:
     #     print("type: \t\t", sys.exc_info()[0].__name__, 
     #           "\nfilename: \t", os.path.split(sys.exc_info()[2].tb_frame.f_code.co_filename)[1], 
