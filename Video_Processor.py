@@ -458,6 +458,8 @@ def get_affine_cv2(translationXY, rotation, scale, centerXY):
 def find_parameters_for_combine_top_view(imgBack, imgLeft, imgFront, imgRight, Back_position=None, Left_position=None, Front_position=None, Right_position=None):
     def emptyFunction(newValue):
         pass
+    
+    #In whole module Video_Processor and tests "vertical in reality means horizontal" and "horizontal in reality means vertical"
 
     cv2.namedWindow("TrackBars")
     cv2.resizeWindow("TrackBars", 1000, 500)
@@ -747,7 +749,7 @@ def find_parameters_for_two_image_stack(img1, img2, offset1=0, offset2=0):
         pass
     
     cv2.namedWindow("TrackBars")
-    cv2.resizeWindow("TrackBars", 900, 140)
+    cv2.resizeWindow("TrackBars", 900, 80)
     cv2.createTrackbar("Left offset", "TrackBars", offset1, int(img1.shape[1]*0.8), emptyFunction)
     cv2.createTrackbar("Right offset", "TrackBars", offset2, int(img2.shape[1]*0.8), emptyFunction)
     
@@ -1012,6 +1014,7 @@ class Video_Processor():
         self.K = None
         self.D = None
         self.DIM = None
+        self.write_images = True
         
         
         self.load_cameras()
@@ -1023,10 +1026,14 @@ class Video_Processor():
             
         
     def load_cameras(self):
-        self.capBack = cv2.VideoCapture(resource_path('260-290mp4\\Back_0260-0290.mp4'))
-        self.capLeft = cv2.VideoCapture(resource_path('260-290mp4\\Left_0260-0290.mp4'))
-        self.capFront = cv2.VideoCapture(resource_path('260-290mp4\\Front_0260-0290.mp4'))
-        self.capRight = cv2.VideoCapture(resource_path('260-290mp4\\Right_0260-0290.mp4'))
+        # self.capBack = cv2.VideoCapture(resource_path('260-290mp4\\Back_0260-0290.mp4'))
+        # self.capLeft = cv2.VideoCapture(resource_path('260-290mp4\\Left_0260-0290.mp4'))
+        # self.capFront = cv2.VideoCapture(resource_path('260-290mp4\\Front_0260-0290.mp4'))
+        # self.capRight = cv2.VideoCapture(resource_path('260-290mp4\\Right_0260-0290.mp4'))
+        self.capBack = cv2.VideoCapture(resource_path('100-110mp4\\Back_0100-0110.mp4'))
+        self.capLeft = cv2.VideoCapture(resource_path('100-110mp4\\Left_0100-0110.mp4'))
+        self.capFront = cv2.VideoCapture(resource_path('100-110mp4\\Front_0100-0110.mp4'))
+        self.capRight = cv2.VideoCapture(resource_path('100-110mp4\\Right_0100-0110.mp4'))
         # self.capBack = cv2.VideoCapture(0)
         # self.capLeft = cv2.VideoCapture(1)
         # self.capFront = cv2.VideoCapture(2)
@@ -1180,7 +1187,11 @@ class Video_Processor():
             
             
         # unwarp images using projection
-        self.W_remap = 720
+        # W_remap and H are resolution of image converted to equirectangular
+        # self.W_remap = 720
+        # self.H = 640
+        # self.FOV = 180
+        self.W_remap = 640
         self.H = 640
         self.FOV = 180
         self.equirectangular_xmap, self.equirectangular_ymap = buildmap(Ws=self.W_remap, Hs=self.H, Wd=640, Hd=640, fov=self.FOV)
@@ -1200,14 +1211,22 @@ class Video_Processor():
                 
         if USE_EQUIRECTANGULAR_METHOD is True:
             # Use starting parameters for equirectangular
-            self.offsetBackLeft1 = 167
-            self.offsetBackLeft2 = 167
-            self.offsetLeftFront1 = 167
-            self.offsetLeftFront2 = 167
-            self.offsetFrontRight1 = 167
-            self.offsetFrontRight2 = 167
-            self.offsetRightBack1 = 167
-            self.offsetRightBack2 = 167
+            # self.offsetBackLeft1 = 167
+            # self.offsetBackLeft2 = 167
+            # self.offsetLeftFront1 = 167
+            # self.offsetLeftFront2 = 167
+            # self.offsetFrontRight1 = 167
+            # self.offsetFrontRight2 = 167
+            # self.offsetRightBack1 = 167
+            # self.offsetRightBack2 = 167
+            self.offsetBackLeft1 = 148
+            self.offsetBackLeft2 = 148
+            self.offsetLeftFront1 = 148
+            self.offsetLeftFront2 = 148
+            self.offsetFrontRight1 = 148
+            self.offsetFrontRight2 = 148
+            self.offsetRightBack1 = 148
+            self.offsetRightBack2 = 148
             
             if USE_PREDEFINED_EQURECTANGULAR_PARAMETERS is False:
                 # find parameters
@@ -1285,7 +1304,8 @@ class Video_Processor():
             self.frame_counter += 1
         else:
             # DO ZMIANY
-            raise SystemExit("Reading frame failed in", resource_path('260-290mp4\\Back_0260-0290.mp4'))
+            # raise SystemExit("Reading frame failed in", resource_path('260-290mp4\\Back_0260-0290.mp4'))
+            raise SystemExit("Reading frame failed")
             self.frame_read_successfully = False
             
         if CAMERA_READ_FROM_FILE is True:
@@ -1345,10 +1365,12 @@ class Video_Processor():
         
  
     def equirectangular_projection(self):
-        imgBack_unwarped = cv2.remap(self.imgBack, self.equirectangular_xmap, self.equirectangular_ymap, cv2.INTER_LINEAR, cv2.CV_32FC1)
-        imgLeft_unwarped = cv2.remap(self.imgLeft, self.equirectangular_xmap, self.equirectangular_ymap, cv2.INTER_LINEAR, cv2.CV_32FC1)
-        imgFront_unwarped = cv2.remap(self.imgFront, self.equirectangular_xmap, self.equirectangular_ymap, cv2.INTER_LINEAR, cv2.CV_32FC1)
-        imgRight_unwarped = cv2.remap(self.imgRight, self.equirectangular_xmap, self.equirectangular_ymap, cv2.INTER_LINEAR, cv2.CV_32FC1)
+        # Przy innym polu widzenia % obcięcia powinien być inny, przydałoby się to automatycznie wyliczać
+        crop_black = int(self.imgBack.shape[0]*0.007)
+        imgBack_unwarped = cv2.remap(self.imgBack, self.equirectangular_xmap, self.equirectangular_ymap, cv2.INTER_LINEAR, cv2.CV_32FC1)[crop_black:-crop_black,:,:]
+        imgLeft_unwarped = cv2.remap(self.imgLeft, self.equirectangular_xmap, self.equirectangular_ymap, cv2.INTER_LINEAR, cv2.CV_32FC1)[crop_black:-crop_black,:,:]
+        imgFront_unwarped = cv2.remap(self.imgFront, self.equirectangular_xmap, self.equirectangular_ymap, cv2.INTER_LINEAR, cv2.CV_32FC1)[crop_black:-crop_black,:,:]
+        imgRight_unwarped = cv2.remap(self.imgRight, self.equirectangular_xmap, self.equirectangular_ymap, cv2.INTER_LINEAR, cv2.CV_32FC1)[crop_black:-crop_black,:,:]
         
         if USE_EQUIRECTANGULAR_METHOD is True:
             self.equirectangular_image = numpy.concatenate((
@@ -1384,10 +1406,12 @@ class Video_Processor():
             
         
         # if SHOW_IMAGES is True:
+        # if self.write_images is True:
         #     cv2.imshow("self.equirectangular_image", self.equirectangular_image)
-        #     cv2.imwrite("prezentacja/imgBack_unwarped.jpg", imgBack_unwarped)
+            # cv2.imwrite("prezentacja/imgBack_unwarped.jpg", imgBack_unwarped)
         #     cv2.imwrite("prezentacja/imgBack.jpg", self.imgBack)
-        #     cv2.imwrite("prezentacja/equirectangular_image.jpg", self.equirectangular_image)
+            # cv2.imwrite("prezentacja/equirectangular_image.jpg", self.equirectangular_image)
+            # self.write_images = False
         #     cv2.waitKey(0)
         #     cv2.destroyAllWindows()
         #     sys.exit()
@@ -1419,6 +1443,9 @@ class Video_Processor():
                         cv2.imshow("self.top_view_image", self.top_view_image)
                     if MAKE_EQUIRECTANGULAR_PROJECTION is True:
                         cv2.imshow("self.equirectangular_image", self.equirectangular_image)
+                        
+                # if self.write_images is True:
+                #     cv2.imwrite("prezentacja/KalibracjaKamery0009Undistorted.jpg", self.top_view_image)
                         
                     # time.sleep(0.2)
 
@@ -1519,50 +1546,111 @@ if __name__ == '__main__':
 # cv2.imshow("Result", warped)
 # cv2.waitKey(0)
 # cv2.destroyAllWindows()
+# # koniec test przeksztalcenia aficznego
+
+# test undistort
+# test jednego top view
+# source_img = cv2.imread(resource_path("dataset5\\0009.jpg"))
+# source_img = cv2.imread(resource_path("System_Calibration-3/0002.jpg"))
+# source_img = cv2.imread(resource_path("prezentacja/imgBack.jpg"))
+# K = numpy.array([[219.85077387813544, 0.0, 321.8468539428703], [0.0, 219.81115217715458, 321.26199300586325], [0.0, 0.0, 1.0]])
+# D = numpy.array([[-0.02236163741176025], [-0.01566355538478192], [0.0066695817100666304], [-0.0009867103996664935]])
+# DIM =(640, 640)
+# map1, map2 = find_undistortion_maps(source_img, K,D,DIM, balance=0.0, dim2=None, dim3=None)
+# undistorted = undistort_with_maps(source_img, (map1, map2))
+
+# cv2.imshow("undistorted", undistorted)
+# cv2.waitKey(0)
+# cv2.destroyAllWindows()
+# # cv2.imwrite("prezentacja/KalibracjaKamery0009Undistorted.jpg", undistorted)
+# koniec test undistort
+
+# shrinking_parameter = 300
+# crop_top = 340
+# crop_bottom = 0
+# _, top_view_map_x, top_view_map_y = make_top_view(undistorted, shrinking_parameter=shrinking_parameter, crop_top=crop_top, crop_bottom=crop_bottom, return_maps=True)
+# # shrinking_parameter, crop_top, crop_bottom, top_view_map_x, top_view_map_y = find_parameters_to_make_top_view(undistorted)
+# topview = make_top_view(undistorted, shrinking_parameter=shrinking_parameter, crop_top=crop_top, crop_bottom=crop_bottom, map_x=top_view_map_x, map_y=top_view_map_y)
+# cv2.imshow("topview", topview)
+# cv2.waitKey(0)
+# cv2.destroyAllWindows()
+# koniec test jednego top view
 
 # #test top view
-# imgBack = cv2.imread(resource_path("System_Calibration-3/0002.jpg"))
-# imgLeft = cv2.imread(resource_path("System_Calibration-3/0003.jpg"))
-# imgFront = cv2.imread(resource_path("System_Calibration-3/0000.jpg"))
-# imgRight = cv2.imread(resource_path("System_Calibration-3/0001.jpg"))
+# imgBack = cv2.imread(resource_path("System_Calibration-1/0002.jpg"))
+# imgLeft = cv2.imread(resource_path("System_Calibration-1/0003.jpg"))
+# imgFront = cv2.imread(resource_path("System_Calibration-1/0000.jpg"))
+# imgRight = cv2.imread(resource_path("System_Calibration-1/0001.jpg"))
 
 # K = numpy.array([[219.85077387813544, 0.0, 321.8468539428703], [0.0, 219.81115217715458, 321.26199300586325], [0.0, 0.0, 1.0]])
 # D = numpy.array([[-0.02236163741176025], [-0.01566355538478192], [0.0066695817100666304], [-0.0009867103996664935]])
 # DIM =(640, 640)
-# imgBack_unwarped0 = undistort3(imgBack,K,D,DIM)
-# imgLeft_unwarped0 = undistort3(imgLeft,K,D,DIM)
-# imgFront_unwarped0 = undistort3(imgFront,K,D,DIM)
-# imgRight_unwarped0 = undistort3(imgRight,K,D,DIM)
+# map1, map2 = find_undistortion_maps(imgBack, K,D,DIM, balance=0.0, dim2=None, dim3=None)
+
+# imgBack_unwarped0 = undistort_with_maps(imgBack, (map1, map2))
+# imgLeft_unwarped0 = undistort_with_maps(imgLeft, (map1, map2))
+# imgFront_unwarped0 = undistort_with_maps(imgFront, (map1, map2))
+# imgRight_unwarped0 = undistort_with_maps(imgRight, (map1, map2))
 # #do ulicznego?
 # # shrinking_parameter = 300
 # # crop_top = 340
 # # crop_bottom = 0
-# #do calibrate system
-# shrinking_parameter = 300
-# crop_top = 331
-# crop_bottom = 140
+# #do calibrate system -3 
+# # shrinking_parameter = 300
+# # crop_top = 331
+# # crop_bottom = 140
+# #do calibrate system -1 
+# # shrinking_parameter = 296
+# # crop_top = 345
+# # crop_bottom = 0
+# #do calibrate system -1v2
+# shrinking_parameter = 270
+# crop_top = 371
+# crop_bottom = 0
 # # shrinking_parameter, crop_top, crop_bottom = find_parameters_to_make_top_view(imgFront_unwarped0)
-# imgBack_topview = make_top_view(imgBack_unwarped0, shrinking_parameter=shrinking_parameter, crop_top=crop_top, crop_bottom=crop_bottom)
-# imgLeft_topview = make_top_view(imgLeft_unwarped0, shrinking_parameter=shrinking_parameter, crop_top=crop_top, crop_bottom=crop_bottom)
-# imgFront_topview = make_top_view(imgFront_unwarped0, shrinking_parameter=shrinking_parameter, crop_top=crop_top, crop_bottom=crop_bottom)
-# imgRight_topview = make_top_view(imgRight_unwarped0, shrinking_parameter=shrinking_parameter, crop_top=crop_top, crop_bottom=crop_bottom)
+# # _, top_view_map_x, top_view_map_y = make_top_view(imgBack_unwarped0, shrinking_parameter=shrinking_parameter, crop_top=crop_top, crop_bottom=crop_bottom, return_maps=True)
+# shrinking_parameter, crop_top, crop_bottom, top_view_map_x, top_view_map_y = find_parameters_to_make_top_view(imgFront_unwarped0)
+# imgFront_topview = make_top_view(imgFront_unwarped0, shrinking_parameter=shrinking_parameter, crop_top=crop_top, crop_bottom=crop_bottom, map_x=top_view_map_x, map_y=top_view_map_y)
+# imgLeft_topview = make_top_view(imgLeft_unwarped0, shrinking_parameter=shrinking_parameter, crop_top=crop_top, crop_bottom=crop_bottom, map_x=top_view_map_x, map_y=top_view_map_y)
+# imgBack_topview  = make_top_view(imgBack_unwarped0, shrinking_parameter=shrinking_parameter, crop_top=crop_top, crop_bottom=crop_bottom, map_x=top_view_map_x, map_y=top_view_map_y)
+# imgRight_topview = make_top_view(imgRight_unwarped0, shrinking_parameter=shrinking_parameter, crop_top=crop_top, crop_bottom=crop_bottom, map_x=top_view_map_x, map_y=top_view_map_y)
 
-# #do ulicznego?
-# # Back_position = [0, 8, 0, 0, 0, 0, 1.38, 0.56]
-# # Left_position = [0, 0, 0, 0, 0, 0, 0.54, 1.56]
-# # Front_position = [0, -8, 0, 0, 0, 0, 1.38, 0.56]
-# # Right_position = [0, 0, 0, 0, 0, 0, 0.54, 1.56]
+# # #do ulicznego?
+# # # Back_position = [0, 8, 0, 0, 0, 0, 1.38, 0.56]
+# # # Left_position = [0, 0, 0, 0, 0, 0, 0.54, 1.56]
+# # # Front_position = [0, -8, 0, 0, 0, 0, 1.38, 0.56]
+# # # Right_position = [0, 0, 0, 0, 0, 0, 0.54, 1.56]
 
-# #do calibrate system
-# vertical_offset_for_parallel = 314
-# horizontal_offset_for_parallel = 224
-# vertical_offset_for_perpendicular = 117
-# horizontal_offset_for_perpendicular = 87
+# #do calibrate system-3
+# # vertical_offset_for_parallel = 314
+# # horizontal_offset_for_parallel = 224
+# # vertical_offset_for_perpendicular = 117
+# # horizontal_offset_for_perpendicular = 87
 
-# vertical_scale_for_parallel = 61
-# horizontal_scale_for_parallel = 45
-# vertical_scale_for_perpendicular = 40
-# horizontal_scale_for_perpendicular = 59
+# # vertical_scale_for_parallel = 61
+# # horizontal_scale_for_parallel = 45
+# # vertical_scale_for_perpendicular = 40
+# # horizontal_scale_for_perpendicular = 59
+# # #do calibrate system-1
+# # vertical_offset_for_parallel = 321
+# # horizontal_offset_for_parallel = 172 #git
+# # vertical_offset_for_perpendicular = 159
+# # horizontal_offset_for_perpendicular = 148 #git
+
+# # vertical_scale_for_parallel = 75
+# # horizontal_scale_for_parallel = 26 #git
+# # vertical_scale_for_perpendicular = 27
+# # horizontal_scale_for_perpendicular = 73 #git
+# #do calibrate system-1v2
+# vertical_offset_for_parallel = 322
+# horizontal_offset_for_parallel = 185
+# vertical_offset_for_perpendicular = 158
+# horizontal_offset_for_perpendicular = 134
+
+# vertical_scale_for_parallel = 72
+# horizontal_scale_for_parallel = 26
+# vertical_scale_for_perpendicular = 27
+# horizontal_scale_for_perpendicular = 74
 # Back_position = [vertical_offset_for_parallel,  horizontal_offset_for_parallel,  0,  \
 #           0,  0,  0,     \
 #               vertical_scale_for_parallel, horizontal_scale_for_parallel]
@@ -1579,9 +1667,15 @@ if __name__ == '__main__':
 # # Left_position = [0, 0, 0, 0, 0, 0, 0.54, 1.56]
 # # Front_position = [0, -8, 0, 0, 0, 0, 1.38, 0.56]
 # # Right_position = [0, 0, 0, 0, 0, 0, 0.54, 1.56]
-# Back_position, Left_position, Front_position, Right_position = find_parameters_for_combine_top_view(imgBack_topview, imgLeft_topview, imgFront_topview, imgRight_topview, Back_position, Left_position, Front_position, Right_position)
-# combined_top_view = combine_top_view(imgBack_topview, imgLeft_topview, imgFront_topview, imgRight_topview, Back_position, Left_position, Front_position, Right_position)
+# # Back_position, Left_position, Front_position, Right_position = find_parameters_for_combine_top_view(imgBack_topview, imgLeft_topview, imgFront_topview, imgRight_topview, Back_position, Left_position, Front_position, Right_position)
+# # combined_top_view = combine_top_view(imgBack_topview, imgLeft_topview, imgFront_topview, imgRight_topview, Back_position, Left_position, Front_position, Right_position)
+# Back_position, Left_position, Front_position, Right_position, mask_Back, mask_Left, mask_Front, mask_Right = find_parameters_for_combine_top_view(imgBack_topview, imgLeft_topview, imgFront_topview, imgRight_topview, Back_position, Left_position, Front_position, Right_position)
+# top_view_image = combine_top_view(imgBack_topview, imgLeft_topview, imgFront_topview, imgRight_topview, Back_position, Left_position, Front_position, Right_position, mask_Back, mask_Left, mask_Front, mask_Right)
 
-# cv2.imshow("Result of top view test", cv2.resize(combined_top_view, (0, 0), None, 0.8, 0.8))
+# # cv2.imwrite("prezentacja/imgBack_unwarped0.jpg", imgBack_unwarped0)
+# # cv2.imwrite("prezentacja/imgBack_unwarped0.jpg", imgBack_unwarped0)
+# # cv2.imwrite("prezentacja/Combined_TopView_Calibration3-croped.jpg", top_view_image)
+# cv2.imshow("Result of top view test", cv2.resize(top_view_image, (0, 0), None, 1.0, 1.0))
 # cv2.waitKey(0)
 # cv2.destroyAllWindows()
+# #koniec test top view

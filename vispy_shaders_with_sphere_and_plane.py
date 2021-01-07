@@ -214,7 +214,7 @@ class Canvas(app.Canvas):
         
         # self.program_sphere['texture'] = checkerboard()
         # self.program_sphere['texture'] = load_texture('1_earth_8k.jpg')
-        self.texture_sphere = gloo.Texture2D(load_texture('equirectangular_image.jpg'), format='rgb')
+        self.texture_sphere = gloo.Texture2D(load_texture('equirectangular_image_square.jpg'), format='rgb')
         self.texture_rectangle = gloo.Texture2D(load_texture('top_view_image.jpg'), format='rgb')
         self.program_sphere['texture'] = self.texture_sphere
         self.program_rectangle['texture'] = self.texture_rectangle
