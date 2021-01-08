@@ -252,7 +252,7 @@ class Canvas(app.Canvas):
         V_car = car_vertices.astype(numpy.float32)
         T_car = random_uv(len(V_car))
         # T = sphere_uv(V) # tekstur nie dawać, jakis jeden kolor wystarczy
-        C_car = color(len(V_car), color=(0.324,0.324,0.324,1))
+        C_car = color(len(V_car), color=(0.124,0.124,0.124,1))
         I_car = car_faces.astype(numpy.uint32)
         
         vertices_car = numpy.zeros(len(V_car),
@@ -284,14 +284,16 @@ class Canvas(app.Canvas):
         # self.program_sphere['texture'] = checkerboard()
         # self.program_sphere['texture'] = load_texture('1_earth_8k.jpg')
         # self.texture_sphere = gloo.Texture2D(load_texture('equirectangular_image_square.jpg'), format='rgb')
-        self.texture_sphere = gloo.Texture2D(load_texture('equirectangular_image.jpg'), format='rgb')
-        self.texture_rectangle = gloo.Texture2D(load_texture('top_view_image.jpg'), format='rgb')
+        # self.texture_sphere = gloo.Texture2D(load_texture('equirectangular_image.jpg'), format='rgb')
+        # self.texture_rectangle = gloo.Texture2D(load_texture('top_view_image.jpg'), format='rgb')
+        self.texture_rectangle = gloo.Texture2D(load_texture('top_view_image-5.jpg'), format='rgb')
+        self.texture_sphere = gloo.Texture2D(load_texture('equirectangular_image_square-5.jpg'), format='rgb')
         
         self.program_sphere['texture'] = self.texture_sphere
         self.program_rectangle['texture'] = self.texture_rectangle
         
         # Camera and perspective parameters
-        self.distance = 5
+        self.distance = 10
         self.height = 2
         self.polar_angle = 90
         self.azimuthal_angle = 0
@@ -339,8 +341,8 @@ class Canvas(app.Canvas):
         self.draw_timer += event.dt
         if self.draw_timer > 0.04: # uptade 24 FPS
             self.draw_timer -= 0.04
-            self.texture_sphere.set_data(load_texture('equirectangular_image.jpg'))
-            self.texture_rectangle.set_data(load_texture('top_view_image.jpg'))
+            self.texture_sphere.set_data(load_texture('equirectangular_image_square-5.jpg'))
+            self.texture_rectangle.set_data(load_texture('top_view_image-5.jpg'))
             self.program_sphere['texture'] = self.texture_sphere
             self.program_rectangle['texture'] = self.texture_rectangle
             self.update()
