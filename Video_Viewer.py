@@ -23,8 +23,8 @@ TODO:
 
 import numpy
 import cv2
-from vispy import app, gloo
-from vispy.util.transforms import translate, perspective, rotate
+from vispy import app, gloo, io
+from vispy.util.transforms import translate, perspective, rotate, scale
 from vispy.geometry import create_sphere, create_plane
 from vispy.gloo import VertexBuffer, IndexBuffer
 
@@ -49,12 +49,14 @@ attribute vec4 color;
 // ------------------------------------
 varying vec3 v_position;
 varying vec2 v_texture_coords;
+varying vec4 v_color;
 
 void main()
 {
     gl_Position = u_projection * u_view * u_model * vec4(position, 1.0);
     v_position = position;
     v_texture_coords = texcoord;
+    v_color = color;
 }
 """
 
@@ -70,6 +72,7 @@ const float INFINITY = 1000000000.;
 // ------------------------------------
 varying vec3 v_position;
 varying vec2 v_texture_coords;
+//varying vec4 v_color;
 
 // Uniforms
 // ------------------------------------
@@ -99,6 +102,7 @@ const float INFINITY = 1000000000.;
 // ------------------------------------
 varying vec3 v_position;
 varying vec2 v_texture_coords;
+//varying vec4 v_color;
 
 // Uniforms
 // ------------------------------------
@@ -111,6 +115,34 @@ uniform sampler2D texture;
 // ------------------------------------
 void main() {
     gl_FragColor = texture2D(texture, v_texture_coords);
+}
+"""
+
+fragment_car = """
+#version 120
+
+// Constants
+// ------------------------------------
+const float M_PI = 3.14159265358979323846;
+const float INFINITY = 1000000000.;
+
+// Varyings
+// ------------------------------------
+varying vec3 v_position;
+varying vec2 v_texture_coords;
+varying vec4 v_color;
+
+// Uniforms
+// ------------------------------------
+uniform sampler2D texture;
+
+// Functions
+// ------------------------------------
+
+// Main
+// ------------------------------------
+void main() {
+    gl_FragColor = v_color;
 }
 """
 
@@ -144,6 +176,14 @@ def load_texture(filename):
 def random_uv(number_of_vertices):
     return numpy.random.rand(number_of_vertices,2).astype(numpy.float32)
 
+def color(number_of_vertices, color = None):
+    if color is None:
+        C = numpy.random.rand(size=(number_of_vertices,4),dtype=numpy.float32)
+        C[:,3] = 1.0
+        return C
+    else:
+        return numpy.full(shape=(number_of_vertices,4), fill_value = color, dtype=numpy.float32)
+
 def sphere_uv(vertices, radius=None):
     if radius == None:
         radius = numpy.average(numpy.linalg.norm(vertices, axis=1))
@@ -162,7 +202,7 @@ class Canvas(app.Canvas):
         def toggle_fs():
             self.fullscreen = not self.fullscreen
         keys = dict(escape='close', F11=toggle_fs, q='close', Q='close')
-        app.Canvas.__init__(self, title='Sphere', position=(300, 100),
+        app.Canvas.__init__(self, title='Video-Viewer', position=(300, 100),
                             size=(800, 600), keys=keys)
 
         # Create sphere
@@ -203,6 +243,32 @@ class Canvas(app.Canvas):
         vertex_buffer_rectangle = VertexBuffer(vertices_rectangle)
         self.indices_rectangle = IndexBuffer(I_rectangle)
         
+        camera_height = 1.05
+        car_model_scale = 0.03
+        
+        # Create car obj
+        # car_vertices, car_faces, N_car, car_texcoords = io.read_mesh("12353_Automobile_V1_L2.obj")
+        car_vertices, car_faces, N_car, car_texcoords = io.read_mesh("CarModel.obj")
+        V_car = car_vertices.astype(numpy.float32)
+        T_car = random_uv(len(V_car))
+        # T = sphere_uv(V) # tekstur nie dawać, jakis jeden kolor wystarczy
+        C_car = color(len(V_car), color=(0.324,0.324,0.324,1))
+        I_car = car_faces.astype(numpy.uint32)
+        
+        vertices_car = numpy.zeros(len(V_car),
+                    [('position', numpy.float32, 3),
+                      ('texcoord', numpy.float32, 2),
+                      ('normal', numpy.float32, 3),
+                      ('color', numpy.float32, 4)])
+    
+        vertices_car['position'] = V_car
+        vertices_car['texcoord'] = T_car
+        vertices_car['normal'] = N_car
+        vertices_car['color'] = C_car
+        
+        vertex_buffer_car = VertexBuffer(vertices_car)
+        self.indices_car = IndexBuffer(I_car)
+        
         
         # Build program
         self.program_sphere = gloo.Program(vertex, fragment_sphere)
@@ -212,10 +278,15 @@ class Canvas(app.Canvas):
         self.program_rectangle.bind(vertex_buffer_rectangle)
         #gloo.gl.glUseProgram(self.program_sphere)
         
+        self.program_car =  gloo.Program(vertex, fragment_car)
+        self.program_car.bind(vertex_buffer_car)
+        
         # self.program_sphere['texture'] = checkerboard()
         # self.program_sphere['texture'] = load_texture('1_earth_8k.jpg')
-        self.texture_sphere = gloo.Texture2D(load_texture('equirectangular_image_square.jpg'), format='rgb')
+        # self.texture_sphere = gloo.Texture2D(load_texture('equirectangular_image_square.jpg'), format='rgb')
+        self.texture_sphere = gloo.Texture2D(load_texture('equirectangular_image.jpg'), format='rgb')
         self.texture_rectangle = gloo.Texture2D(load_texture('top_view_image.jpg'), format='rgb')
+        
         self.program_sphere['texture'] = self.texture_sphere
         self.program_rectangle['texture'] = self.texture_rectangle
         
@@ -236,8 +307,15 @@ class Canvas(app.Canvas):
         # self.program_rectangle['u_model'] = numpy.matmul(rotate(90, (0, 0, 1)),
         #                                                  translate((0, 0, 1.1)))
         self.program_rectangle['u_model'] = numpy.matmul(rotate(180, (0, 0, 1)),
-                                                          translate((0, 0, 1.1)))
+                                                          translate((0, 0, camera_height)))
         self.program_rectangle['u_view'] = self.view
+        self.program_car['u_projection'] = self.projection
+        self.program_car['u_model'] =  numpy.matmul(numpy.matmul(numpy.matmul(
+                                                    scale((car_model_scale,car_model_scale,car_model_scale)),
+                                                    rotate(90, (0, 1, 0))), # obrót horyzontalny
+                                                    rotate(270, (1, 0, 0))), # obrót góra dół
+                                                    translate((0, 0, camera_height)))
+        self.program_car['u_view'] = self.view
         
         self.apply_zoom()
 
@@ -276,6 +354,7 @@ class Canvas(app.Canvas):
         self.view = create_camera_matrix(self.azimuthal_angle, self.polar_angle, -self.height, -self.distance)
         self.program_sphere['u_view'] = self.view
         self.program_rectangle['u_view'] = self.view
+        self.program_car['u_view'] = self.view
         self.update()
         
     def apply_zoom(self):
@@ -284,6 +363,7 @@ class Canvas(app.Canvas):
                                       float(self.size[1]), 1.0, 1000.0)
         self.program_sphere['u_projection'] = self.projection
         self.program_rectangle['u_projection'] = self.projection
+        self.program_car['u_projection'] = self.projection
         self.update()
         
         
@@ -324,14 +404,17 @@ class Canvas(app.Canvas):
         self.view = create_camera_matrix(self.azimuthal_angle, self.polar_angle, -self.height, -self.distance)
         self.program_sphere['u_view'] = self.view
         self.program_rectangle['u_view'] = self.view
+        self.program_car['u_view'] = self.view
         self.update()
 
     def on_draw(self, event):
         # gloo.clear(color=True, depth=True) # does it even work?
-        # self.context.glir.command('FUNC', 'glCullFace', 'front')
+        self.context.glir.command('FUNC', 'glCullFace', 'front')
         self.program_sphere.draw('triangles', self.indices_sphere)
         # self.context.glir.command('FUNC', 'glCullFace', 'front_and_back')
         self.program_rectangle.draw('triangles', self.indices_rectangle)
+        # self.context.glir.command('FUNC', 'glCullFace', 'front')
+        self.program_car.draw('triangles', self.indices_car)
     
     
     # def _remove_programs(self):
