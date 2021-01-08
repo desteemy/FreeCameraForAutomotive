@@ -539,12 +539,12 @@ def find_parameters_for_combine_top_view(imgBack, imgLeft, imgFront, imgRight, B
     cv2.destroyWindow("TrackBars")
     cv2.destroyWindow("combined_top_view")
     
-    mask_Back, mask_Left, mask_Front, mask_Right = combine_top_view(imgBack, imgLeft, imgFront, imgRight, Back_position, Left_position, Front_position, Right_position, return_masks = True, first_run = False)
+    mask_Back, mask_Left, mask_Front, mask_Right, mask_blur = combine_top_view(imgBack, imgLeft, imgFront, imgRight, Back_position, Left_position, Front_position, Right_position, return_masks = True, first_run = False)
     
-    return Back_position, Left_position, Front_position, Right_position, mask_Back, mask_Left, mask_Front, mask_Right
+    return Back_position, Left_position, Front_position, Right_position, mask_Back, mask_Left, mask_Front, mask_Right, mask_blur
 
 
-def combine_top_view(imgBack, imgLeft, imgFront, imgRight, Back_position=None, Left_position=None, Front_position=None, Right_position=None, mask_Back=None, mask_Left=None, mask_Front=None, mask_Right=None, return_masks = False, first_run = False):
+def combine_top_view(imgBack, imgLeft, imgFront, imgRight, Back_position=None, Left_position=None, Front_position=None, Right_position=None, mask_Back=None, mask_Left=None, mask_Front=None, mask_Right=None, mask_blur=None, return_masks = False, first_run = False):
     #Position is a list containing x_position, y_position, z_position,
     #                              camera_pitch, camera_yaw, camera_roll,
     #                              image_scale_x, image_scale_y
@@ -656,11 +656,59 @@ def combine_top_view(imgBack, imgLeft, imgFront, imgRight, Back_position=None, L
         
 
     if return_masks is True or calculate_masks is True:
-        mask_Back = (warpedBack != 0)
-        mask_Left = (warpedLeft != 0)
-        mask_Front = (warpedFront != 0)
-        mask_Right = (warpedRight != 0)
-
+        mask_L = (warpedLeft[:,:,0] != 0)
+        mask_R = (warpedRight[:,:,0] != 0)
+        # type conversion
+        mask_L = mask_L.astype(numpy.uint8)
+        mask_R = mask_R.astype(numpy.uint8)
+        
+        # closing
+        kernel = numpy.ones((5,5), dtype=numpy.uint8)
+        mask_L = cv2.morphologyEx(src=mask_L, op=cv2.MORPH_CLOSE, kernel=kernel)
+        mask_R = cv2.morphologyEx(src=mask_R, op=cv2.MORPH_CLOSE, kernel=kernel)
+        # erosion
+        mask_L = cv2.erode(src=mask_L, kernel=kernel, iterations = 1)
+        mask_R = cv2.erode(src=mask_R, kernel=kernel, iterations = 1)
+        # prepare side masks
+        ones = numpy.ones((int(imgCombined_height/2), imgCombined_width), dtype=numpy.uint8)
+        zeros = numpy.zeros((imgCombined_height - int(imgCombined_height/2), imgCombined_width), dtype=numpy.uint8)
+        
+        mask_B = numpy.vstack((ones,zeros))
+        mask_F = numpy.vstack((zeros,ones))
+        
+        mask_B = numpy.logical_or.reduce((mask_B, mask_L, mask_R))
+        mask_F = numpy.logical_or.reduce((mask_F, mask_L, mask_R))
+        
+        mask_B = numpy.logical_not(mask_B)
+        mask_F = numpy.logical_not(mask_F)
+        
+        # # type conversion
+        # mask_B = mask_B.astype(bool)
+        # mask_F = mask_F.astype(bool)
+        # mask_L = mask_L.astype(bool)
+        # mask_R = mask_R.astype(bool)
+        # shape conversion
+        mask_Back = numpy.stack((mask_B,mask_B,mask_B), axis=2).astype(bool)
+        mask_Front = numpy.stack((mask_F,mask_F,mask_F), axis=2).astype(bool)
+        mask_Left = numpy.stack((mask_L,mask_L,mask_L), axis=2).astype(bool)
+        mask_Right = numpy.stack((mask_R,mask_R,mask_R), axis=2).astype(bool)
+        
+        # create mask_blur
+        mask_B = cv2.dilate(mask_B.astype(numpy.uint8), kernel, iterations = 1)
+        mask_F = cv2.dilate(mask_F.astype(numpy.uint8), kernel, iterations = 1)
+        mask_L = cv2.dilate(mask_L.astype(numpy.uint8), kernel, iterations = 1)
+        mask_R = cv2.dilate(mask_R.astype(numpy.uint8), kernel, iterations = 1)
+        mask_blur = numpy.logical_xor.reduce((mask_B, mask_F, mask_L, mask_R))
+        mask_blur = numpy.logical_not(mask_blur)
+        mask_blur = cv2.morphologyEx(mask_blur.astype(numpy.uint8), cv2.MORPH_CLOSE, kernel)
+        #mask_blur = cv2.dilate(mask_blur, kernel, iterations = 2)
+        mask_blur = numpy.stack((mask_blur,mask_blur,mask_blur), axis=2)
+        # cv2.imshow("mask_blur", mask_blur.astype(numpy.float32))
+        # cv2.waitKey(0)
+        # cv2.destroyAllWindows()
+        # sys.exit()
+        mask_blur = mask_blur.astype(bool)
+        
     
     # combine
     imgCombined = numpy.zeros((imgCombined_height, imgCombined_width, 3), dtype=numpy.uint8)
@@ -668,6 +716,9 @@ def combine_top_view(imgBack, imgLeft, imgFront, imgRight, Back_position=None, L
     imgCombined[mask_Front] = warpedFront[mask_Front]
     imgCombined[mask_Left] = warpedLeft[mask_Left]
     imgCombined[mask_Right] = warpedRight[mask_Right]
+    
+    imgBlured = cv2.blur(imgCombined,(8,8))
+    imgCombined[mask_blur] = imgBlured[mask_blur]
     
     # time4 = time.time()
     # cv2.imshow("imgBack_rotated", imgBack_rotated)
@@ -690,7 +741,7 @@ def combine_top_view(imgBack, imgLeft, imgFront, imgRight, Back_position=None, L
     # print("Time in rotate {:.4f} scale {:.4f} trans {:.4f} combine {:.4f} total {:.4f} seconds".format(time1-time0, time2-time1, time3-time2, time4-time3, time4-time0))
          
     if return_masks:
-        return mask_Back, mask_Left, mask_Front, mask_Right
+        return mask_Back, mask_Left, mask_Front, mask_Right, mask_blur
     else:
         return imgCombined
 
@@ -1026,14 +1077,14 @@ class Video_Processor():
             
         
     def load_cameras(self):
-        # self.capBack = cv2.VideoCapture(resource_path('260-290mp4\\Back_0260-0290.mp4'))
-        # self.capLeft = cv2.VideoCapture(resource_path('260-290mp4\\Left_0260-0290.mp4'))
-        # self.capFront = cv2.VideoCapture(resource_path('260-290mp4\\Front_0260-0290.mp4'))
-        # self.capRight = cv2.VideoCapture(resource_path('260-290mp4\\Right_0260-0290.mp4'))
-        self.capBack = cv2.VideoCapture(resource_path('100-110mp4\\Back_0100-0110.mp4'))
-        self.capLeft = cv2.VideoCapture(resource_path('100-110mp4\\Left_0100-0110.mp4'))
-        self.capFront = cv2.VideoCapture(resource_path('100-110mp4\\Front_0100-0110.mp4'))
-        self.capRight = cv2.VideoCapture(resource_path('100-110mp4\\Right_0100-0110.mp4'))
+        self.capBack = cv2.VideoCapture(resource_path('260-290mp4\\Back_0260-0290.mp4'))
+        self.capLeft = cv2.VideoCapture(resource_path('260-290mp4\\Left_0260-0290.mp4'))
+        self.capFront = cv2.VideoCapture(resource_path('260-290mp4\\Front_0260-0290.mp4'))
+        self.capRight = cv2.VideoCapture(resource_path('260-290mp4\\Right_0260-0290.mp4'))
+        # self.capBack = cv2.VideoCapture(resource_path('100-110mp4\\Back_0100-0110.mp4'))
+        # self.capLeft = cv2.VideoCapture(resource_path('100-110mp4\\Left_0100-0110.mp4'))
+        # self.capFront = cv2.VideoCapture(resource_path('100-110mp4\\Front_0100-0110.mp4'))
+        # self.capRight = cv2.VideoCapture(resource_path('100-110mp4\\Right_0100-0110.mp4'))
         # self.capBack = cv2.VideoCapture(0)
         # self.capLeft = cv2.VideoCapture(1)
         # self.capFront = cv2.VideoCapture(2)
@@ -1142,7 +1193,7 @@ class Video_Processor():
             # self.Left_position = [0, -5, 0, 0, 0, 0, 0.6, 1.54]
             # self.Front_position = [0, 0, 0, 0, 0, 0, 1.52, 0.62]
             # self.Right_position = [0, -5, 0, 0, 0, 0, 0.6, 1.54]
-            self.mask_Back, self.mask_Left, self.mask_Front, self.mask_Right = combine_top_view(imgBack_topview, imgLeft_topview, imgFront_topview, imgRight_topview, self.Back_position, self.Left_position, self.Front_position, self.Right_position, return_masks=True, first_run=False)
+            self.mask_Back, self.mask_Left, self.mask_Front, self.mask_Right, self.mask_blur = combine_top_view(imgBack_topview, imgLeft_topview, imgFront_topview, imgRight_topview, self.Back_position, self.Left_position, self.Front_position, self.Right_position, return_masks=True, first_run=False)
         else:
             vertical_offset_for_parallel = 320
             horizontal_offset_for_parallel = 160
@@ -1175,7 +1226,7 @@ class Video_Processor():
                       0,  0,  0,     \
                           vertical_scale_for_perpendicular, horizontal_scale_for_perpendicular]
     
-            self.Back_position, self.Left_position, self.Front_position, self.Right_position, self.mask_Back, self.mask_Left, self.mask_Front, self.mask_Right = find_parameters_for_combine_top_view(imgBack_topview, imgLeft_topview, imgFront_topview, imgRight_topview, self.Back_position, self.Left_position, self.Front_position, self.Right_position)
+            self.Back_position, self.Left_position, self.Front_position, self.Right_position, self.mask_Back, self.mask_Left, self.mask_Front, self.mask_Right, self.mask_blur = find_parameters_for_combine_top_view(imgBack_topview, imgLeft_topview, imgFront_topview, imgRight_topview, self.Back_position, self.Left_position, self.Front_position, self.Right_position)
 
         
     def calibrate_equirectangular_projection(self):
@@ -1234,6 +1285,26 @@ class Video_Processor():
                 self.offsetLeftFront1, self.offsetLeftFront2 = find_parameters_for_two_image_stack(imgLeft_unwarped[:,int(self.W_remap/2):,:], imgFront_unwarped[:,:int(self.W_remap/2),:], self.offsetLeftFront1, self.offsetLeftFront2)
                 self.offsetFrontRight1, self.offsetFrontRight2 = find_parameters_for_two_image_stack(imgFront_unwarped[:,int(self.W_remap/2):,:], imgRight_unwarped[:,:int(self.W_remap/2),:], self.offsetFrontRight1, self.offsetFrontRight2)
                 self.offsetRightBack1, self.offsetRightBack2 = find_parameters_for_two_image_stack(imgRight_unwarped[:,int(self.W_remap/2):,:], imgBack_unwarped[:,:int(self.W_remap/2),:], self.offsetRightBack1, self.offsetRightBack2)
+             
+            # create blur mask
+            size_1 = imgRight_unwarped.shape[1]-self.offsetRightBack1-int(self.W_remap/2)
+            size_2 = imgBack_unwarped.shape[1]-self.offsetBackLeft1-self.offsetRightBack2
+            size_3 = imgLeft_unwarped.shape[1]-self.offsetLeftFront1-self.offsetBackLeft2
+            size_4 = imgFront_unwarped.shape[1]-self.offsetFrontRight1-self.offsetLeftFront2
+            
+            size_5 = int(self.W_remap/2)-self.offsetFrontRight2
+
+            crop_black = int(self.imgBack.shape[0]*0.007)
+            seam_width = 10  
+            
+            mask_blur_equuirectangular = numpy.zeros((imgRight_unwarped.shape[0]-2*crop_black, size_1+size_2+size_3+size_4+size_5, 3))
+            mask_blur_equuirectangular[:,size_1-seam_width:size_1+seam_width,:] = 1
+            mask_blur_equuirectangular[:,size_1+size_2-seam_width:size_1+size_2+seam_width,:] = 1
+            mask_blur_equuirectangular[:,size_1+size_2+size_3-seam_width:size_1+size_2+size_3+seam_width,:] = 1
+            mask_blur_equuirectangular[:,size_1+size_2+size_3+size_4-seam_width:size_1+size_2+size_3+size_4+seam_width,:] = 1
+            mask_blur_equuirectangular = mask_blur_equuirectangular.astype(bool)
+            self.mask_blur_equuirectangular = mask_blur_equuirectangular
+            
             
             # concatenate images - stack_two_images_with_offsets - is only for two images, here will be 4, using it 3 times is stupid
             #   then make stake 4 images? more code, but better readability
@@ -1247,6 +1318,7 @@ class Video_Processor():
             #     ), axis=1)
         
         elif USE_ORB_IN_EQUIRECTANGULAR_METHOD is True:
+            self.mask_blur_equuirectangular = None
         
             #stitch unwarped images
             # self.vertical_stitching_offset = 40
@@ -1339,8 +1411,8 @@ class Video_Processor():
         imgRight_topview = make_top_view(imgRight_unwarped0, shrinking_parameter=self.shrinking_parameter, crop_top=self.crop_top, crop_bottom=self.crop_bottom, map_x=self.top_view_map_x, map_y=self.top_view_map_y)
 
         # time2 = time.time()
-        # combined_top_view = combine_top_view(imgBack_topview, imgLeft_topview, imgFront_topview, imgRight_topview, self.Back_position, self.Left_position, self.Front_position, self.Right_position, self.mask_Back, self.mask_Left, self.mask_Front, self.mask_Right)
-        self.top_view_image = combine_top_view(imgBack_topview, imgLeft_topview, imgFront_topview, imgRight_topview, self.Back_position, self.Left_position, self.Front_position, self.Right_position, self.mask_Back, self.mask_Left, self.mask_Front, self.mask_Right)
+        # combined_top_view = combine_top_view(imgBack_topview, imgLeft_topview, imgFront_topview, imgRight_topview, self.Back_position, self.Left_position, self.Front_position, self.Right_position, self.mask_Back, self.mask_Left, self.mask_Front, self.mask_Right, self.mask_blur)
+        self.top_view_image = combine_top_view(imgBack_topview, imgLeft_topview, imgFront_topview, imgRight_topview, self.Back_position, self.Left_position, self.Front_position, self.Right_position, self.mask_Back, self.mask_Left, self.mask_Front, self.mask_Right, self.mask_blur)
         # time3 = time.time()
         
         # height_in_stiched = numpy.nonzero(combined_top_view[:,int(combined_top_view.shape[1]/2),:][:,1])[0]
@@ -1373,13 +1445,23 @@ class Video_Processor():
         imgRight_unwarped = cv2.remap(self.imgRight, self.equirectangular_xmap, self.equirectangular_ymap, cv2.INTER_LINEAR, cv2.CV_32FC1)[crop_black:-crop_black,:,:]
         
         if USE_EQUIRECTANGULAR_METHOD is True:
-            self.equirectangular_image = numpy.concatenate((
+            imgConcatenated = numpy.concatenate((
                 imgRight_unwarped[:,int(self.W_remap/2):-self.offsetRightBack1,:],
                 imgBack_unwarped[:,self.offsetRightBack2:-self.offsetBackLeft1,:],
                 imgLeft_unwarped[:,self.offsetBackLeft2:-self.offsetLeftFront1,:],
                 imgFront_unwarped[:,self.offsetLeftFront2:-self.offsetFrontRight1,:],
                 imgRight_unwarped[:,self.offsetFrontRight2:int(self.W_remap/2),:]
                 ), axis=1)
+
+            
+            imgBlured = cv2.blur(imgConcatenated,(3,3))
+            imgConcatenated[self.mask_blur_equuirectangular] = imgBlured[self.mask_blur_equuirectangular]
+            # cv2.imshow("imgConcatenated", imgConcatenated.astype(numpy.uint8))
+            # cv2.waitKey(0)
+            # cv2.destroyAllWindows()
+            # sys.exit()
+            self.equirectangular_image = imgConcatenated
+            
             
         elif USE_ORB_IN_EQUIRECTANGULAR_METHOD is True: # o co tu właciwie chodziło
             # DO ZMIANY
@@ -1444,8 +1526,10 @@ class Video_Processor():
                     if MAKE_EQUIRECTANGULAR_PROJECTION is True:
                         cv2.imshow("self.equirectangular_image", self.equirectangular_image)
                         
-                # if self.write_images is True:
-                #     cv2.imwrite("prezentacja/KalibracjaKamery0009Undistorted.jpg", self.top_view_image)
+                # if self.write_images is True and self.frame_counter == 27:
+                #     cv2.imwrite("prezentacja/top_view_image-5.jpg", self.top_view_image)
+                #     cv2.imwrite("prezentacja/equirectangular_image_square-5.jpg", self.equirectangular_image)
+                #     self.write_images = False
                         
                     # time.sleep(0.2)
 
@@ -1669,8 +1753,8 @@ if __name__ == '__main__':
 # # Right_position = [0, 0, 0, 0, 0, 0, 0.54, 1.56]
 # # Back_position, Left_position, Front_position, Right_position = find_parameters_for_combine_top_view(imgBack_topview, imgLeft_topview, imgFront_topview, imgRight_topview, Back_position, Left_position, Front_position, Right_position)
 # # combined_top_view = combine_top_view(imgBack_topview, imgLeft_topview, imgFront_topview, imgRight_topview, Back_position, Left_position, Front_position, Right_position)
-# Back_position, Left_position, Front_position, Right_position, mask_Back, mask_Left, mask_Front, mask_Right = find_parameters_for_combine_top_view(imgBack_topview, imgLeft_topview, imgFront_topview, imgRight_topview, Back_position, Left_position, Front_position, Right_position)
-# top_view_image = combine_top_view(imgBack_topview, imgLeft_topview, imgFront_topview, imgRight_topview, Back_position, Left_position, Front_position, Right_position, mask_Back, mask_Left, mask_Front, mask_Right)
+# Back_position, Left_position, Front_position, Right_position, mask_Back, mask_Left, mask_Front, mask_Right, mask_blur = find_parameters_for_combine_top_view(imgBack_topview, imgLeft_topview, imgFront_topview, imgRight_topview, Back_position, Left_position, Front_position, Right_position)
+# top_view_image = combine_top_view(imgBack_topview, imgLeft_topview, imgFront_topview, imgRight_topview, Back_position, Left_position, Front_position, Right_position, mask_Back, mask_Left, mask_Front, mask_Right, mask_blur)
 
 # # cv2.imwrite("prezentacja/imgBack_unwarped0.jpg", imgBack_unwarped0)
 # # cv2.imwrite("prezentacja/imgBack_unwarped0.jpg", imgBack_unwarped0)
