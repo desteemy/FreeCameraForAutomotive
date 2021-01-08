@@ -352,7 +352,8 @@ class Canvas(app.Canvas):
 
     def on_mouse_wheel(self, event):
         self.distance -= event.delta[1] / 3
-        self.distance = max(2, self.distance)
+        self.distance = max(6.66, self.distance)
+        self.distance = min(12.67, self.distance)
         self.view = create_camera_matrix(self.azimuthal_angle, self.polar_angle, -self.height, -self.distance)
         self.program_sphere['u_view'] = self.view
         self.program_rectangle['u_view'] = self.view
@@ -390,7 +391,8 @@ class Canvas(app.Canvas):
         if(event.key.name == "Up" or event.key.name == "W"):
             self.polar_angle -= 3
             
-        # Rotate up
+            
+        # Rotate down
         if(event.key.name == "Down" or event.key.name == "S"):
             self.polar_angle += 3
         
@@ -402,6 +404,10 @@ class Canvas(app.Canvas):
         if(event.key.name == "F"):
             self.height -= 0.3
             
+        self.height = max(0, self.height)
+        self.height = min(5, self.height)
+        self.polar_angle = max(76, self.polar_angle)
+        self.polar_angle = min(190, self.polar_angle)
         
         self.view = create_camera_matrix(self.azimuthal_angle, self.polar_angle, -self.height, -self.distance)
         self.program_sphere['u_view'] = self.view
