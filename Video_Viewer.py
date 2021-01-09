@@ -283,11 +283,11 @@ class Canvas(app.Canvas):
         
         # self.program_sphere['texture'] = checkerboard()
         # self.program_sphere['texture'] = load_texture('1_earth_8k.jpg')
-        # self.texture_sphere = gloo.Texture2D(load_texture('equirectangular_image_square.jpg'), format='rgb')
+        self.texture_sphere = gloo.Texture2D(load_texture('equirectangular_image_square.jpg'), format='rgb')
         # self.texture_sphere = gloo.Texture2D(load_texture('equirectangular_image.jpg'), format='rgb')
-        # self.texture_rectangle = gloo.Texture2D(load_texture('top_view_image.jpg'), format='rgb')
-        self.texture_rectangle = gloo.Texture2D(load_texture('top_view_image-5.jpg'), format='rgb')
-        self.texture_sphere = gloo.Texture2D(load_texture('equirectangular_image_square-5.jpg'), format='rgb')
+        self.texture_rectangle = gloo.Texture2D(load_texture('top_view_image.jpg'), format='rgb')
+        # self.texture_rectangle = gloo.Texture2D(load_texture('top_view_image-5.jpg'), format='rgb')
+        # self.texture_sphere = gloo.Texture2D(load_texture('equirectangular_image_square-5.jpg'), format='rgb')
         
         self.program_sphere['texture'] = self.texture_sphere
         self.program_rectangle['texture'] = self.texture_rectangle
@@ -341,8 +341,8 @@ class Canvas(app.Canvas):
         self.draw_timer += event.dt
         if self.draw_timer > 0.04: # uptade 24 FPS
             self.draw_timer -= 0.04
-            self.texture_sphere.set_data(load_texture('equirectangular_image_square-5.jpg'))
-            self.texture_rectangle.set_data(load_texture('top_view_image-5.jpg'))
+            self.texture_sphere.set_data(load_texture('equirectangular_image_square.jpg'))
+            self.texture_rectangle.set_data(load_texture('top_view_image.jpg'))
             self.program_sphere['texture'] = self.texture_sphere
             self.program_rectangle['texture'] = self.texture_rectangle
             self.update()

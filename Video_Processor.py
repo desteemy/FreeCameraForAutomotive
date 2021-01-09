@@ -663,9 +663,15 @@ def combine_top_view(imgBack, imgLeft, imgFront, imgRight, Back_position=None, L
         mask_R = mask_R.astype(numpy.uint8)
         
         # closing
-        kernel = numpy.ones((5,5), dtype=numpy.uint8)
+        kernel = numpy.ones((10,10), dtype=numpy.uint8)
         mask_L = cv2.morphologyEx(src=mask_L, op=cv2.MORPH_CLOSE, kernel=kernel)
         mask_R = cv2.morphologyEx(src=mask_R, op=cv2.MORPH_CLOSE, kernel=kernel)
+        if first_run is True:
+            mask_L = cv2.morphologyEx(src=mask_L, op=cv2.MORPH_CLOSE, kernel=numpy.ones((35,35), dtype=numpy.uint8), borderType=cv2.BORDER_ISOLATED)
+            mask_R = cv2.morphologyEx(src=mask_R, op=cv2.MORPH_CLOSE, kernel=numpy.ones((35,35), dtype=numpy.uint8), borderType=cv2.BORDER_ISOLATED)
+        else:
+            mask_L = cv2.morphologyEx(src=mask_L, op=cv2.MORPH_CLOSE, kernel=numpy.ones((20,20), dtype=numpy.uint8), borderType=cv2.BORDER_ISOLATED)
+            mask_R = cv2.morphologyEx(src=mask_R, op=cv2.MORPH_CLOSE, kernel=numpy.ones((20,20), dtype=numpy.uint8), borderType=cv2.BORDER_ISOLATED)
         # erosion
         mask_L = cv2.erode(src=mask_L, kernel=kernel, iterations = 1)
         mask_R = cv2.erode(src=mask_R, kernel=kernel, iterations = 1)
@@ -703,6 +709,8 @@ def combine_top_view(imgBack, imgLeft, imgFront, imgRight, Back_position=None, L
         mask_blur = cv2.morphologyEx(mask_blur.astype(numpy.uint8), cv2.MORPH_CLOSE, kernel)
         #mask_blur = cv2.dilate(mask_blur, kernel, iterations = 2)
         mask_blur = numpy.stack((mask_blur,mask_blur,mask_blur), axis=2)
+        # cv2.imshow("mask_Left", mask_Left.astype(numpy.float32))
+        # cv2.imshow("mask_Back", mask_Back.astype(numpy.float32))
         # cv2.imshow("mask_blur", mask_blur.astype(numpy.float32))
         # cv2.waitKey(0)
         # cv2.destroyAllWindows()
@@ -1065,7 +1073,7 @@ class Video_Processor():
         self.K = None
         self.D = None
         self.DIM = None
-        self.write_images = True
+        # self.write_images = True
         
         
         self.load_cameras()
@@ -1204,6 +1212,7 @@ class Video_Processor():
             horizontal_scale_for_parallel = 31
             vertical_scale_for_perpendicular = 30
             horizontal_scale_for_perpendicular = 77
+            
             # vertical_offset_for_parallel = 320
             # horizontal_offset_for_parallel = 160
             # vertical_offset_for_perpendicular = 148
@@ -1426,14 +1435,15 @@ class Video_Processor():
         # cv2.imwrite("prezentacja/imgBack_unwarped0.jpg", imgBack_unwarped0)
         # cv2.imwrite("prezentacja/imgBack_topview.jpg", imgBack_topview)
         # cv2.imwrite("prezentacja/top_view_image.jpg", self.top_view_image)
+        # sys.exit()
         
         # if SHOW_IMAGES is True:
         #     cv2.imshow("self.top_view_image", self.top_view_image)
-        #     # cv2.imshow("combined_top_view", combined_top_view)
+        # #     # cv2.imshow("combined_top_view", combined_top_view)
         #     cv2.waitKey(0)
-        #     cv2.destroyWindow("self.top_view_image")
-        #     # cv2.destroyAllWindows()
-        #     # sys.exit()
+        #     # cv2.destroyWindow("self.top_view_image")
+        #     cv2.destroyAllWindows()
+        #     sys.exit()
         
  
     def equirectangular_projection(self):
@@ -1461,6 +1471,8 @@ class Video_Processor():
             # cv2.destroyAllWindows()
             # sys.exit()
             self.equirectangular_image = imgConcatenated
+            # cv2.imwrite("prezentacja/equirectangular_image_square.jpg", self.equirectangular_image)
+            # sys.exit()
             
             
         elif USE_ORB_IN_EQUIRECTANGULAR_METHOD is True: # o co tu właciwie chodziło
