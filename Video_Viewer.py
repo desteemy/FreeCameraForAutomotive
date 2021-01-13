@@ -1,32 +1,71 @@
 # -*- coding: utf-8 -*-
 """
-Created on Sat Nov 21 00:22:21 2020
+Created on Wed Oct 14 15:51:40 2020
 
-@author: Dawid
+@author: Dawid Skoczny
 
-TODO:
-    szew na sferze
-        podzielic sfere na dwa obiekty i osobno teksturowac?
-        new fragment shader somehow works and fix it
-    
-    zlepic 360 z kamer
-    
-    zeedytowac jako video
-    
-    restrict camera movement
-    add mouse?
-    add predifined camera
-    
-    Running vispy programs in ipython (spyder console) leaves canvas after closing, running multiple times results in memory leak?
 
 """
 
+import Video_Processor
 import numpy
 import cv2
+import time
+
 from vispy import app, gloo, io
 from vispy.util.transforms import translate, perspective, rotate, scale
 from vispy.geometry import create_sphere, create_plane
 from vispy.gloo import VertexBuffer, IndexBuffer
+
+
+# System flags
+USE_PREDEFINED_CAMERA_PARAMETERS = True
+ONLY_VALID_IMAGES_FOR_CAMERA_CALIBRATION = False
+CAMERA_READ_FROM_FILE = True
+
+USE_PREDEFINED_TOP_VIEW_PARAMETERS = True
+USE_PREDEFINED_COMBINE_TOP_VIEW_PARAMETERS = True  # False - first guess to make it easier
+
+USE_PREDEFINED_EQURECTANGULAR_PARAMETERS = True # False - first guess to make it easier
+
+SHOW_IMAGES = False
+flags = (USE_PREDEFINED_CAMERA_PARAMETERS,
+          ONLY_VALID_IMAGES_FOR_CAMERA_CALIBRATION,
+          CAMERA_READ_FROM_FILE,
+          USE_PREDEFINED_TOP_VIEW_PARAMETERS,
+          USE_PREDEFINED_COMBINE_TOP_VIEW_PARAMETERS,
+          USE_PREDEFINED_EQURECTANGULAR_PARAMETERS,
+          SHOW_IMAGES)
+
+config_file_path = "config.txt"
+
+
+
+
+
+
+# VP = Video_Processor.Video_Processor(flags, config_file_path)
+# # VP.read_frame()
+# # VP.top_view()
+# # VP.equirectangular_projection()
+
+# while True:
+#     if cv2.waitKey(1) & 0xFF == ord('q'):
+#         break
+#     else:
+#         VP.read_frame()
+#         top_view_image = VP.top_view()
+#         equirectangular_image = VP.equirectangular_projection()
+        
+#         if True:
+#             cv2.imshow("self.top_view_image", top_view_image)
+#             cv2.imshow("self.equirectangular_image", equirectangular_image)
+                        
+
+# # VP.run(dont_stop = True)
+# # VP.save_config_file("new_config.txt")
+# del VP
+
 
 vertex = """
 #version 120
@@ -163,9 +202,7 @@ def checkerboard(grid_num=8, grid_size=32):
     Z = numpy.row_stack(grid_num // 2 * (row_even, row_odd)).astype(numpy.uint8)
     return 255 * Z.repeat(grid_size, axis=0).repeat(grid_size, axis=1)
 
-#https://www.programcreek.com/python/?code=kirumang%2FPix2Pose%2FPix2Pose-master%2Frendering%2Frenderer.py#
-# przepisać pod swoje potrzeby :)
-# tam jest mowa o face-wise i vertex-wise cokolwiek to znaczy
+
 def load_texture(filename):
     # print('Loading {}'.format(filename))
     # image = cv2.flip(cv2.imread(filename, cv2.IMREAD_UNCHANGED), 0)  # Must be flipped because of OpenGL
@@ -251,8 +288,9 @@ class Canvas(app.Canvas):
         car_vertices, car_faces, N_car, car_texcoords = io.read_mesh("CarModel.obj")
         V_car = car_vertices.astype(numpy.float32)
         T_car = random_uv(len(V_car))
-        # T = sphere_uv(V) # tekstur nie dawać, jakis jeden kolor wystarczy
-        C_car = color(len(V_car), color=(0.124,0.124,0.124,1))
+        # T = sphere_uv(V) # importing textures would take some time
+        # C_car = color(len(V_car), color=(0.124,0.124,0.124,1))
+        C_car = color(len(V_car), color=(0.7,0.7,0.7,1))
         I_car = car_faces.astype(numpy.uint32)
         
         vertices_car = numpy.zeros(len(V_car),
@@ -281,13 +319,21 @@ class Canvas(app.Canvas):
         self.program_car =  gloo.Program(vertex, fragment_car)
         self.program_car.bind(vertex_buffer_car)
         
+        # innitialize Video_Processor
+        #import Video_Processor
+        self.VP = Video_Processor.Video_Processor(flags, config_file_path)
+        self.VP.read_frame()
+        top_view_image = self.VP.top_view() # cv2.cvtColor(top_view_image, cv2.COLOR_BGR2RGB)
+        equirectangular_image = self.VP.equirectangular_projection() #cv2.cvtColor(equirectangular_image, cv2.COLOR_BGR2RGB)
+        
+        
         # self.program_sphere['texture'] = checkerboard()
         # self.program_sphere['texture'] = load_texture('1_earth_8k.jpg')
-        self.texture_sphere = gloo.Texture2D(load_texture('equirectangular_image_square.jpg'), format='rgb')
+        # self.texture_sphere = gloo.Texture2D(load_texture('equirectangular_image_square.jpg'), format='rgb')
         # self.texture_sphere = gloo.Texture2D(load_texture('equirectangular_image.jpg'), format='rgb')
-        self.texture_rectangle = gloo.Texture2D(load_texture('top_view_image.jpg'), format='rgb')
-        # self.texture_rectangle = gloo.Texture2D(load_texture('top_view_image-5.jpg'), format='rgb')
-        # self.texture_sphere = gloo.Texture2D(load_texture('equirectangular_image_square-5.jpg'), format='rgb')
+        # self.texture_rectangle = gloo.Texture2D(load_texture('top_view_image.jpg'), format='rgb')
+        self.texture_sphere = gloo.Texture2D(equirectangular_image[:,:,::-1], format='rgb')
+        self.texture_rectangle = gloo.Texture2D(top_view_image[:,:,::-1], format='rgb')
         
         self.program_sphere['texture'] = self.texture_sphere
         self.program_rectangle['texture'] = self.texture_rectangle
@@ -297,6 +343,7 @@ class Canvas(app.Canvas):
         self.height = 2
         self.polar_angle = 90
         self.azimuthal_angle = 0
+        self.camera_FOV = 70
         self.view = create_camera_matrix(self.azimuthal_angle, self.polar_angle, -self.height, -self.distance) # translate((0, 0, -self.distance))
         self.model = numpy.eye(4, dtype=numpy.float32)
         self.projection = numpy.eye(4, dtype=numpy.float32)
@@ -333,19 +380,39 @@ class Canvas(app.Canvas):
         
         self.draw_timer = 0.0
         self.measure_fps(window=1)
+        # self.times_in_loop_length = 30
+        # self.times_in_loop_index = 0
+        # self.times_in_loop = [10] * self.times_in_loop_length
 
         # self.show()
 
     def on_timer(self, event):
         # t = event.elapsed
         self.draw_timer += event.dt
-        if self.draw_timer > 0.04: # uptade 24 FPS
+        if self.draw_timer > 0.04: # uptade 25 FPS
             self.draw_timer -= 0.04
-            self.texture_sphere.set_data(load_texture('equirectangular_image_square.jpg'))
-            self.texture_rectangle.set_data(load_texture('top_view_image.jpg'))
+            # time0 = time.time()
+        
+            self.VP.read_frame()
+            top_view_image = self.VP.top_view()
+            equirectangular_image = self.VP.equirectangular_projection()
+            
+            # self.texture_sphere.set_data(load_texture('equirectangular_image_square.jpg'))
+            # self.texture_rectangle.set_data(load_texture('top_view_image.jpg'))
+            # self.texture_sphere.set_data(load_texture('Under_Roof/equirectangular_image.jpg'))
+            # self.texture_rectangle.set_data(load_texture('Under_Roof/top_view_image.jpg'))
+            self.texture_sphere.set_data(equirectangular_image[:,:,::-1])
+            self.texture_rectangle.set_data(top_view_image[:,:,::-1])
             self.program_sphere['texture'] = self.texture_sphere
             self.program_rectangle['texture'] = self.texture_rectangle
             self.update()
+            
+            # time1 = time.time()
+            # self.times_in_loop_index += 1
+            # if self.times_in_loop_index >= self.times_in_loop_length:
+            #     self.times_in_loop_index = 0
+            # self.times_in_loop[self.times_in_loop_index] = time1-time0
+            # print("Average FPS {}".format(1/(sum(self.times_in_loop)/len(self.times_in_loop))))
 
     def on_resize(self, event):
         self.apply_zoom()
@@ -362,7 +429,7 @@ class Canvas(app.Canvas):
         
     def apply_zoom(self):
         gloo.set_viewport(0, 0, self.physical_size[0], self.physical_size[1])
-        self.projection = perspective(60.0, self.size[0] /
+        self.projection = perspective(self.camera_FOV, self.size[0] /
                                       float(self.size[1]), 1.0, 1000.0)
         self.program_sphere['u_projection'] = self.projection
         self.program_rectangle['u_projection'] = self.projection
@@ -437,10 +504,12 @@ class Canvas(app.Canvas):
         # self._remove_programs()
 
 if __name__ == '__main__':
-    canvas = Canvas()
+    Video_Viewer = Canvas()
     # canvas.measure_fps()
-    canvas.show()
+    Video_Viewer.show()
     app.run()
     # canvas.close()
     app.quit()
     
+
+
