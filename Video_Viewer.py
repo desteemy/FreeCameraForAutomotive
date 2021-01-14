@@ -307,6 +307,8 @@ class Canvas(app.Canvas):
         vertex_buffer_car = VertexBuffer(vertices_car)
         self.indices_car = IndexBuffer(I_car)
         
+
+        
         
         # Build program
         self.program_sphere = gloo.Program(vertex, fragment_sphere)
@@ -379,10 +381,12 @@ class Canvas(app.Canvas):
         # self._timer = app.Timer(interval=0, connect=self.on_timer, start=True)
         
         self.draw_timer = 0.0
-        self.measure_fps(window=1)
-        # self.times_in_loop_length = 30
-        # self.times_in_loop_index = 0
-        # self.times_in_loop = [10] * self.times_in_loop_length
+        # self.measure_fps(window=1)
+        self.timenew = time.time()
+        self.timeold = self.timenew
+        self.times_in_loop_length = 30
+        self.times_in_loop_index = 0
+        self.times_in_loop = [15] * self.times_in_loop_length
 
         # self.show()
 
@@ -391,7 +395,8 @@ class Canvas(app.Canvas):
         self.draw_timer += event.dt
         if self.draw_timer > 0.04: # uptade 25 FPS
             self.draw_timer -= 0.04
-            # time0 = time.time()
+            self.timenew = time.time()
+
         
             self.VP.read_frame()
             top_view_image = self.VP.top_view()
@@ -407,12 +412,13 @@ class Canvas(app.Canvas):
             self.program_rectangle['texture'] = self.texture_rectangle
             self.update()
             
-            # time1 = time.time()
-            # self.times_in_loop_index += 1
-            # if self.times_in_loop_index >= self.times_in_loop_length:
-            #     self.times_in_loop_index = 0
-            # self.times_in_loop[self.times_in_loop_index] = time1-time0
-            # print("Average FPS {}".format(1/(sum(self.times_in_loop)/len(self.times_in_loop))))
+            self.timenew = time.time()
+            self.times_in_loop_index += 1
+            if self.times_in_loop_index >= self.times_in_loop_length:
+                print("Average FPS {}".format(1/(sum(self.times_in_loop)/len(self.times_in_loop))))
+                self.times_in_loop_index = 0
+            self.times_in_loop[self.times_in_loop_index] = self.timenew-self.timeold
+            self.timeold = self.timenew
 
     def on_resize(self, event):
         self.apply_zoom()
@@ -425,7 +431,7 @@ class Canvas(app.Canvas):
         self.program_sphere['u_view'] = self.view
         self.program_rectangle['u_view'] = self.view
         self.program_car['u_view'] = self.view
-        self.update()
+        # self.update()
         
     def apply_zoom(self):
         gloo.set_viewport(0, 0, self.physical_size[0], self.physical_size[1])
@@ -434,7 +440,7 @@ class Canvas(app.Canvas):
         self.program_sphere['u_projection'] = self.projection
         self.program_rectangle['u_projection'] = self.projection
         self.program_car['u_projection'] = self.projection
-        self.update()
+        # self.update()
         
         
     def on_key_press(self, event):
@@ -471,6 +477,10 @@ class Canvas(app.Canvas):
         if(event.key.name == "F"):
             self.height -= 0.3
             
+        # Save calibration file
+        if(event.key.name == "F5"):
+            self.VP.save_config_file()
+            
         self.height = max(0, self.height)
         self.height = min(5, self.height)
         self.polar_angle = max(76, self.polar_angle)
@@ -480,7 +490,7 @@ class Canvas(app.Canvas):
         self.program_sphere['u_view'] = self.view
         self.program_rectangle['u_view'] = self.view
         self.program_car['u_view'] = self.view
-        self.update()
+        # self.update()
 
     def on_draw(self, event):
         # gloo.clear(color=True, depth=True) # does it even work?
@@ -505,7 +515,7 @@ class Canvas(app.Canvas):
 
 if __name__ == '__main__':
     Video_Viewer = Canvas()
-    # canvas.measure_fps()
+    # Video_Viewer.measure_fps(window=1)
     Video_Viewer.show()
     app.run()
     # canvas.close()

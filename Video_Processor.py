@@ -111,21 +111,21 @@ def make_top_view(img, points_source = None, points_destination = None, shrinkin
             # points_destination = numpy.array([[0, heigth], [0, 0], [width, 0], [width, heigth]], dtype=numpy.float32) # jakies kompletnie losowe tera
             points_destination = numpy.array([[448,609], [580,609], [580,741], [448,741]], dtype=numpy.float32) # jakies kompletnie losowe tera
             
-        homography_matrix = cv2.getPerspectiveTransform(points_source, points_destination)
         if map_x is None or map_y is None:
+            homography_matrix = cv2.getPerspectiveTransform(points_source, points_destination)
             map_x, map_y = create_maps_using_homography_matrix(img, homography_matrix, invert_matrix=True)
         result = cv2.remap(img, map_x, map_y, cv2.INTER_LINEAR, cv2.CV_32FC1)
         #result = cv2.warpPerspective(img, homography_matrix, img.shape[:2][::-1])
     else:
-        # top view from parameters
-        heigth_original, width = img.shape[:2]
-        # img2=img[crop_top:img.shape[0]-crop_bottom,:,:]
-        heigth = heigth_original-crop_top-crop_bottom
-        points_source = numpy.array([[0,0], [width,0], [0,heigth], [width,heigth]], dtype=numpy.float32)
-        points_destination = numpy.array([[0,0], [width,0], [shrinking_parameter,heigth], [width-shrinking_parameter,heigth]], dtype=numpy.float32)
-        
-        homography_matrix = cv2.getPerspectiveTransform(points_source, points_destination)
         if map_x is None or map_y is None:
+            # top view from parameters
+            heigth_original, width = img.shape[:2]
+            # img2=img[crop_top:img.shape[0]-crop_bottom,:,:]
+            heigth = heigth_original-crop_top-crop_bottom
+            points_source = numpy.array([[0,0], [width,0], [0,heigth], [width,heigth]], dtype=numpy.float32)
+            points_destination = numpy.array([[0,0], [width,0], [shrinking_parameter,heigth], [width-shrinking_parameter,heigth]], dtype=numpy.float32)
+        
+            homography_matrix = cv2.getPerspectiveTransform(points_source, points_destination)
             map_x, map_y = create_maps_using_homography_matrix(img[crop_top:img.shape[0]-crop_bottom,:,:], homography_matrix, invert_matrix=True)
         result = cv2.remap(img[crop_top:img.shape[0]-crop_bottom,:,:], map_x, map_y, cv2.INTER_LINEAR, cv2.CV_32FC1)
         # result = cv2.warpPerspective(img[crop_top:img.shape[0]-crop_bottom,:,:], homography_matrix, (img.shape[1], heigth))
@@ -701,10 +701,10 @@ class Video_Processor():
             # self.capFront = cv2.VideoCapture(resource_path('100-110mp4\\Front_0100-0110.mp4'))
             # self.capRight = cv2.VideoCapture(resource_path('100-110mp4\\Right_0100-0110.mp4'))
         else:
-            self.capBack = cv2.VideoCapture(0)
-            self.capLeft = cv2.VideoCapture(1)
-            self.capFront = cv2.VideoCapture(2)
-            self.capRight = cv2.VideoCapture(3)
+            self.capBack = cv2.VideoCapture(1)
+            self.capLeft = cv2.VideoCapture(2)
+            self.capFront = cv2.VideoCapture(3)
+            self.capRight = cv2.VideoCapture(4)
         
         if cv2.VideoCapture.isOpened(self.capBack) is False or  \
             cv2.VideoCapture.isOpened(self.capLeft) is False or \
