@@ -16,4 +16,4 @@ self.offsetFrontRight1 = 148
 self.offsetFrontRight2 = 148
 self.offsetRightBack1 = 148
 self.offsetRightBack2 = 148
-calibrationDirectory = 'dataset5\\*.jpg'
+calibrationDirectory = dataset5\\*.jpg

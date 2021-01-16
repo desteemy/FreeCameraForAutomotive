@@ -639,7 +639,8 @@ class Video_Processor():
                 if index > 9 and index <= 17:
                     self.predefined_equirectangular_parameters_string.append(line.strip())
                 if index == 18:
-                    self.calibration_directory = line
+                    calibration_directory = line.strip()
+                    self.calibration_directory = calibration_directory[calibration_directory.rfind('=')+2:]
         print("Read config file")
                     
     def save_config_file(self, config_file_path, new_calibration_directory=None):
@@ -685,7 +686,7 @@ class Video_Processor():
             file.writelines(predefined_combine_top_view_parameters_string)
             file.writelines(predefined_equirectangular_parameters_string)
             # file.writelines(directory+str(config_file_path))
-            file.writelines(str(path))
+            file.writelines("calibrationDirectory = " + str(path))
         print("Saved new config file")
         
         
@@ -944,7 +945,7 @@ class Video_Processor():
         self.top_view_image = combine_top_view(imgBack_topview, imgLeft_topview, imgFront_topview, imgRight_topview, self.Back_position, self.Left_position, self.Front_position, self.Right_position, self.mask_Back, self.mask_Left, self.mask_Front, self.mask_Right, self.mask_blur)
         # time3 = time.time()
         
-        # print("Time in top_view {:.4f} make {:.4f} combine {:.4f} total {:.4f} seconds".format(time1-time0, time2-time1, time3-time2, time3-time0))
+        # print("Time undistort {:.4f} top_view {:.4f} combine {:.4f} total {:.4f} seconds".format(time1-time0, time2-time1, time3-time2, time3-time0))
                 
         
         # cv2.imwrite("prezentacja/imgBack_unwarped0.jpg", imgBack_unwarped0)
@@ -1079,8 +1080,13 @@ if __name__ == '__main__':
         only_valid_images_for_calibration.append("dataset5\\0010.jpg")
         only_valid_images_for_calibration.append("dataset5\\0023.jpg")
         only_valid_images_for_calibration.append("dataset5\\0032.jpg")
+        only_valid_images_for_calibration.append("dataset5\\0037.jpg")
+        only_valid_images_for_calibration.append("dataset5\\0046.jpg")
         only_valid_images_for_calibration.append("dataset5\\0058.jpg")
         only_valid_images_for_calibration.append("dataset5\\0067.jpg")
+        only_valid_images_for_calibration.append("dataset5\\0072.jpg")
+        only_valid_images_for_calibration.append("dataset5\\0081.jpg")
+        only_valid_images_for_calibration.append("dataset5\\0094.jpg")
         
     flags = (USE_PREDEFINED_CAMERA_PARAMETERS,
              ONLY_VALID_IMAGES_FOR_CAMERA_CALIBRATION,
