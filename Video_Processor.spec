@@ -3,8 +3,8 @@
 block_cipher = None
 
 
-a = Analysis(['Video_Processor.py'],
-             pathex=['C:\\GitFiles\\Python\\InzSystemKamer\\PythonCV2v1'],
+a = Analysis(['Video_Viewer.py'],
+             pathex=['C:\\GitFiles\\Python\\InzSystemKamer\\AroundViewMonitor'],
              binaries=[('C:\\Users\\Dawid\\Anaconda3\\pkgs\\libopencv-3.4.1-h875b8b8_3\\Library\\bin\\opencv_ffmpeg341_64.dll', '.')],
              datas=[],
              hiddenimports=[],
@@ -24,7 +24,7 @@ exe = EXE(pyz,
           a.scripts,
           [],
           exclude_binaries=True,
-          name='Video_Processor',
+          name='Video_Viewer',
           debug=False,
           bootloader_ignore_signals=False,
           strip=False,
@@ -37,4 +37,4 @@ coll = COLLECT(exe,
                strip=False,
                upx=True,
                upx_exclude=[],
-               name='Video_Processor')
+               name='Video_Viewer')
