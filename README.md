@@ -32,3 +32,9 @@ conda install -c conda-forge pyinstaller
 pyinstaller yourprogram.spec
 ```
 Running last line with additional parameters `--noconfirm` will skip confirming decision and `--onefile` will generate single .exe file instead of whole directory.
+
+
+
+---
+CarModel.obj is a free model with Personal Use License downloaded from [https://free3d.com/3d-model/automobile-v1--84248.html].
+And datasets were rendered using [The "Multi-FoV" synthetic datasets](http://rpg.ifi.uzh.ch/fov.html), which was released under the [Creative Commons license (CC BY-NC-SA 3.0)](http://creativecommons.org/licenses/by-nc-sa/3.0/), which is free for non-commercial use (including research).
