@@ -6,6 +6,7 @@ Vision system designed for automotive to provide virtual camera perspective from
 (opencv in version >=3.3 is necessary; 3.3 version guarantees there will be no problem with importing cv2 dll, which can occur in newer versions, and python 3.6 is the newest for that opencv version).
 ```shell
 conda create --name FreeCameraForAutomotive python=3.6
+conda activate FreeCameraForAutomotive
 conda install -c conda-forge numpy
 conda install -c conda-forge ffmpeg
 conda install -c conda-forge opencv=3.3
