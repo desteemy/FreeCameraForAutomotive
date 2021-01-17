@@ -1,13 +1,19 @@
 # FreeCameraForAutomotive
 Vision system designed for automotive to provide virtual camera perspective from four fisheye cameras mounted on vehicle sides.
 
-## Installing required python 3.7 packages using [Anaconda](https://www.anaconda.com/products/individual)
+## Installing required python 3.6 packages using [Anaconda](https://www.anaconda.com/products/individual)
 ### Using Anaconda Prompt and typing following commands to create a new enviroment
+(opencv in version >=3.3 is necessary; 3.3 version guarantees there will be no problem with importing cv2 dll, which can occur in newer versions, and python 3.6 is the newest for that opencv version).
 ```shell
-conda create --name FreeCameraForAutomotive python=3.7
+conda create --name FreeCameraForAutomotive python=3.6
 conda install -c conda-forge numpy
-conda install -c conda-forge opencv
+conda install -c conda-forge ffmpeg
+conda install -c conda-forge opencv=3.3
 conda install vispy
+```
+and any of following packages: ['PyQt4', 'PyQt5', 'PySide', 'Pyglet', 'Glfw', 'SDL2', 'wx', 'EGL', 'osmesa']. We recommend PyQt
+```shell
+conda install -c conda-forge pyqt
 ```
 
 OR
