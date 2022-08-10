@@ -2,7 +2,7 @@
 """
 Created on Wed Oct 14 15:51:40 2020
 
-@author: Dawid Skoczny
+@author: Dawid
 
 
 """
